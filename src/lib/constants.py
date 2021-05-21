@@ -1,0 +1,2 @@
+DEFAULT_ADDR = 'localhost'
+DEFAULT_PORT = 4321

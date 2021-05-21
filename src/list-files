@@ -1,0 +1,55 @@
+#!/usr/bin/python3
+"""
+Sends a request to the specified server in order to receive the available
+files to download from it.
+"""
+
+from datetime import datetime
+from lib.cli_parse import parse_args_list
+from lib.socket_tcp import Socket
+from lib.logger import logger
+from lib.formatters import get_size_readable
+import lib.protocol as prt
+
+
+def main(args):
+    logger.setLevel(args.level)
+
+    skt = Socket()
+    skt.connect(args.ADDR, args.PORT)
+
+    prt.send_opcode(skt, prt.LIST_FILES_OP)
+    s = prt.recv_status(skt)
+    if s:
+        raise RuntimeError(prt.get_error_msg(s))
+
+    files_list = prt.recv_list(skt)
+
+    if not files_list:
+        print("No hay archivos disponibles en el servidor.")
+        return 0
+
+    sorted_by = {
+        "name": 0,
+        "size": 1,
+        "date": 2
+    }
+
+    print(f"Archivos disponibles ({len(files_list)}):")
+
+    files_list.sort(reverse=not args.ASC,
+                    key=lambda x: x[sorted_by[args.SORT_KEY]])
+    for filename, size, mtime in files_list:
+        mtime = datetime.fromtimestamp(mtime).strftime('%d-%b-%Y (%H:%M:%S)')
+        print(f"> [{mtime}] {filename} - {get_size_readable(size)}")
+
+    return 0
+
+
+if __name__ == "__main__":
+    args = parse_args_list()
+    try:
+        main(args)
+    except BaseException as e:
+        logger.fatal(e)
+        exit(1)

@@ -1,0 +1,88 @@
+#!/usr/bin/python3
+"""
+Starts a server on address and port received, and listens to requests
+from clients.
+"""
+
+from os import chdir, mkdir
+from argparse import ArgumentParser
+from lib.socket_tcp import Socket
+from lib.accepter import Accepter
+from lib.logger import logger, DEBUG_LEVEL, INFO_LEVEL, FATAL_LEVEL
+from lib.stats import print_stats
+from __main__ import __doc__ as description, __file__
+from lib.constants import DEFAULT_ADDR, DEFAULT_PORT
+
+
+DEFAULT_DIRPATH = "files"
+
+
+def parse_args():
+    """
+    Parse args using `argparse` in order to fullfil requirements.
+    """
+
+    parser = ArgumentParser(description=description,
+                            prog=__file__)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-v", "--verbose", action="store_const",
+                       dest="level", const=DEBUG_LEVEL, default=INFO_LEVEL,
+                       help="Increase output verbosity")
+    group.add_argument("-q", "--quiet", action="store_const",
+                       dest="level", const=FATAL_LEVEL,
+                       help="Decrease output verbosity")
+    parser.add_argument("-H", "--host", dest="ADDR", type=str,
+                        default=DEFAULT_ADDR, help="service IP address")
+    parser.add_argument("-p", "--port", dest="PORT", type=int,
+                        default=DEFAULT_PORT, help="service port")
+    parser.add_argument("-s", "--storage", dest="DIRPATH", type=str,
+                        default=DEFAULT_DIRPATH, help="storage dir path")
+
+    return parser.parse_args()
+
+
+def main(args):
+    logger.setLevel(args.level)
+
+    try:
+        chdir(args.DIRPATH)
+    except FileNotFoundError as e:
+        if args.DIRPATH == DEFAULT_DIRPATH:
+            mkdir(args.DIRPATH)
+            chdir(args.DIRPATH)
+        else:
+            logger.fatal(e.strerror + args.DIRPATH)
+            exit(1)
+
+    skt = Socket()
+    skt.bind(args.ADDR, args.PORT)
+    skt.listen()
+
+    accepter = Accepter(skt)
+    logger.info(f"Listening on port {args.PORT}.")
+
+    print("Enter `s` to print stats, or `q` to exit.")
+    try:
+        while True:
+            option = input()
+            if option == 's':
+                print_stats()
+            elif option == 'q':
+                raise EOFError
+            print("Enter `s` to print stats, or `q` to exit.")
+    except EOFError:
+        accepter.stop()
+
+    if args.level < FATAL_LEVEL:
+        print_stats()
+
+    return 0
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    try:
+        main(args)
+    except BaseException as e:
+        logger.fatal(e)
+        exit(1)

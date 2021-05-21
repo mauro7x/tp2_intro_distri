@@ -1,0 +1,46 @@
+#!/usr/bin/python3
+"""
+Sends a request to the specified server in order to upload the specified
+file and make it available to download.
+"""
+
+from os import path
+from lib.cli_parse import parse_args_upload
+from lib.socket_tcp import Socket
+from lib.logger import logger
+import lib.protocol as prt
+
+
+def main(args):
+    logger.setLevel(args.level)
+
+    if not path.isfile(args.FILEPATH):
+        raise FileNotFoundError(f"File not found: {args.FILEPATH}")
+
+    skt = Socket()
+    skt.connect(args.ADDR, args.PORT)
+
+    prt.send_opcode(skt, prt.UPLOAD_FILE_OP)
+    s = prt.recv_status(skt)
+    if s:
+        raise RuntimeError(prt.get_error_msg(s))
+
+    prt.send_filename(skt, args.FILENAME)
+
+    logger.info("Uploading file...")
+
+    with open(args.FILEPATH, 'rb') as f:
+        prt.send_file(skt, f, True)
+
+    logger.info("File uploaded.")
+
+    return 0
+
+
+if __name__ == "__main__":
+    args = parse_args_upload()
+    try:
+        main(args)
+    except BaseException as e:
+        logger.fatal(e)
+        exit(1)
