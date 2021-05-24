@@ -6,6 +6,8 @@ file and make it available to download.
 
 from os import path
 from lib.cli_parse import parse_args_upload
+from lib.rdt_interface import recvfrom_fixed_addr, sendto_fixed_addr
+from lib.rdt_selection import create_rdt
 from lib.socket_udp import Socket
 from lib.logger import logger
 import lib.protocol as prt
@@ -18,19 +20,20 @@ def main(args):
         raise FileNotFoundError(f"File not found: {args.FILEPATH}")
 
     skt = Socket()
-    skt.bind(args.ADDR, args.PORT)
+    addr = (args.ADDR, args.PORT)
+    rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 
-    prt.send_opcode(skt, prt.UPLOAD_FILE_OP)
-    s = prt.recv_status(skt)
+    prt.send_opcode(rdt, prt.UPLOAD_FILE_OP)
+    s = prt.recv_status(rdt)
     if s:
         raise RuntimeError(prt.get_error_msg(s))
 
-    prt.send_filename(skt, args.FILENAME)
+    prt.send_filename(rdt, args.FILENAME)
 
     logger.info("Uploading file...")
 
     with open(args.FILEPATH, 'rb') as f:
-        prt.send_file(skt, f, True)
+        prt.send_file(rdt, f, True)
 
     logger.info("File uploaded.")
 

@@ -17,7 +17,7 @@ class ClientHandler:
         self.addr = addr
         self.th = Thread(None, self._run, self)
         self.queue_cv = Condition()
-        self.queue = deque
+        self.queue = deque()
         self.rdt = create_rdt(send, self.pop)
         self.running = True
         self.th.start()
@@ -91,18 +91,20 @@ class ClientHandler:
         return
 
     def push(self, data):
-        self.queue.append(data)
-        self.queue_cv.notify()
+        with self.queue_cv:
+            self.queue.append(data)
+            self.queue_cv.notify()
         return
 
     def pop(self, length):
         result = []
         total = 0
-        while total < length:
-            while not self.queue:
-                self.queue_cv.wait()
-            result.append(self.queue.popleft())
-            total += len(result[-1])
+        with self.queue_cv:
+            while total < length:
+                while not self.queue:
+                    self.queue_cv.wait()
+                result.append(self.queue.popleft())
+                total += len(result[-1])
 
         result = b''.join(result)
         if total - length:

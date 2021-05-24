@@ -19,9 +19,11 @@ class Receiver:
 
     def _demux(self, addr, data):
         if addr not in self.clients:
-            logger.debug(f"New request from: {addr}")
             self.clients[addr] = ClientHandler(
                 sendto_fixed_addr(self.skt, addr), addr)
+            logger.debug(
+                f"New request from: {addr} assigned to ClientHandler: "
+                f"{self.clients[addr].id}")
 
         self.clients[addr].push(data)
 
@@ -40,7 +42,7 @@ class Receiver:
     def _join_handlers(self, force=False):
         active_handlers = {}
 
-        for addr, handler in self.clients:
+        for addr, handler in self.clients.items():
             if force or handler.is_done():
                 handler.join(force)
                 logger.debug("[Accepter] Client joined.")

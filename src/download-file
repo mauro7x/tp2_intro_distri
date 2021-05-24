@@ -6,7 +6,9 @@ file.
 
 from os import path, chdir, mkdir
 from lib.cli_parse import parse_args_download
-from lib.socket_tcp import Socket
+from lib.rdt_interface import recvfrom_fixed_addr, sendto_fixed_addr
+from lib.rdt_selection import create_rdt
+from lib.socket_udp import Socket
 from lib.logger import logger
 import lib.protocol as prt
 
@@ -49,22 +51,23 @@ def main(args):
         return 0
 
     skt = Socket()
-    skt.connect(args.ADDR, args.PORT)
+    addr = (args.ADDR, args.PORT)
+    rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 
-    prt.send_opcode(skt, prt.DOWNLOAD_FILE_OP)
-    s = prt.recv_status(skt)
+    prt.send_opcode(rdt, prt.DOWNLOAD_FILE_OP)
+    s = prt.recv_status(rdt)
     if s:
         raise RuntimeError(prt.get_error_msg(s))
 
-    prt.send_filename(skt, args.FILENAME)
-    s = prt.recv_status(skt)
+    prt.send_filename(rdt, args.FILENAME)
+    s = prt.recv_status(rdt)
     if s:
         raise RuntimeError(prt.get_error_msg(s))
 
     logger.info("Downloading file...")
 
     with open(filepath, 'wb') as f:
-        for file_chunk in prt.recv_file(skt, True):
+        for file_chunk in prt.recv_file(rdt, True):
             f.write(file_chunk)
 
     logger.info("File downloaded.")
