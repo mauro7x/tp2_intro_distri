@@ -2,6 +2,7 @@ from collections import deque
 from os import listdir, path
 from threading import Condition, Thread
 from itertools import count as it_count
+from time import time
 from lib.logger import logger
 from lib.stats import stats
 import lib.protocol as prt
@@ -96,13 +97,13 @@ class ClientHandler:
             self.queue_cv.notify()
         return
 
-    def pop(self, length):
+    def pop(self, length, timeout=None, timer_start=0):
         result = []
         total = 0
         with self.queue_cv:
             while total < length:
                 while not self.queue:
-                    self.queue_cv.wait()
+                    self.queue_cv.wait(timeout)
                 result.append(self.queue.popleft())
                 total += len(result[-1])
 

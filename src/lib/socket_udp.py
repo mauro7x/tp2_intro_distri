@@ -17,8 +17,13 @@ class Socket:
     def sendto(self, data: bytearray, addr: tuple):
         return self.skt.sendto(data, addr)
 
-    def recvfrom(self, maxlen):
-        return self.skt.recvfrom(maxlen)
+    def recvfrom(self, maxlen, timeout=None, start_time=0):
+        if timeout is None:
+            return self.skt.recvfrom(maxlen)
+        self.skt.settimeout(timeout - (now() - start_time))
+        recd = self.skt.recvfrom(maxlen)
+        self.skt.settimeout(0)
+        return recd
 
     def close(self):
         try:
