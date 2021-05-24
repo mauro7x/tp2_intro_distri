@@ -6,7 +6,9 @@ files to download from it.
 
 from datetime import datetime
 from lib.cli_parse import parse_args_list
-from lib.socket_tcp import Socket
+from lib.rdt_interface import recvfrom_fixed_addr, sendto_fixed_addr
+from lib.rdt_selection import create_rdt
+from lib.socket_udp import Socket
 from lib.logger import logger
 from lib.formatters import get_size_readable
 import lib.protocol as prt
@@ -16,14 +18,16 @@ def main(args):
     logger.setLevel(args.level)
 
     skt = Socket()
-    skt.connect(args.ADDR, args.PORT)
 
-    prt.send_opcode(skt, prt.LIST_FILES_OP)
-    s = prt.recv_status(skt)
+    addr = (args.ADDR, args.PORT)
+    rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
+
+    prt.send_opcode(rdt, prt.LIST_FILES_OP)
+    s = prt.recv_status(rdt)
     if s:
         raise RuntimeError(prt.get_error_msg(s))
 
-    files_list = prt.recv_list(skt)
+    files_list = prt.recv_list(rdt)
 
     if not files_list:
         print("No hay archivos disponibles en el servidor.")
@@ -51,5 +55,6 @@ if __name__ == "__main__":
     try:
         main(args)
     except BaseException as e:
+        raise e
         logger.fatal(e)
         exit(1)

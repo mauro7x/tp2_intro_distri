@@ -6,7 +6,7 @@ file and make it available to download.
 
 from os import path
 from lib.cli_parse import parse_args_upload
-from lib.socket_tcp import Socket
+from lib.socket_udp import Socket
 from lib.logger import logger
 import lib.protocol as prt
 
@@ -18,7 +18,7 @@ def main(args):
         raise FileNotFoundError(f"File not found: {args.FILEPATH}")
 
     skt = Socket()
-    skt.connect(args.ADDR, args.PORT)
+    skt.bind(args.ADDR, args.PORT)
 
     prt.send_opcode(skt, prt.UPLOAD_FILE_OP)
     s = prt.recv_status(skt)

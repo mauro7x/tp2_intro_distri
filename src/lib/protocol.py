@@ -1,7 +1,7 @@
 from os import SEEK_END
-from lib.socket_tcp import Socket
 from lib.progress import progress_bar
 from lib.logger import logger, FATAL_LEVEL
+from lib.rdt_interface import RDTInterface
 
 # -----------------------------------------------------------------------------
 # constants
@@ -59,97 +59,97 @@ def decode_int(bytes: bytearray) -> int:
 # wrappers
 
 
-def send_status(skt: Socket, status: int) -> None:
+def send_status(rdt: RDTInterface, status: int) -> None:
     """
     Send the opcode of status in binary format.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
     status(int): Opcode of status.
 
     Returns:
     None
     """
-    skt.send(status.to_bytes(STATUS_SIZE, INT_ENCODING))
+    rdt.send(status.to_bytes(STATUS_SIZE, INT_ENCODING))
 
 
-def recv_status(skt: Socket) -> int:
+def recv_status(rdt: RDTInterface) -> int:
     """
     Receive the status opcode and return it with integer value.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
 
     Returns:
     opcode(int): Opcode of status.
     """
-    return int.from_bytes(skt.recv(STATUS_SIZE), INT_ENCODING)
+    return int.from_bytes(rdt.recv(STATUS_SIZE), INT_ENCODING)
 
 
-def send_opcode(skt: Socket, opcode: int) -> None:
+def send_opcode(rdt: RDTInterface, opcode: int) -> None:
     """
     Send the command opcode in binary format.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
     status(int): Command opcode
 
     Returns:
     None
     """
-    skt.send(opcode.to_bytes(OPCODE_SIZE, INT_ENCODING))
+    rdt.send(opcode.to_bytes(OPCODE_SIZE, INT_ENCODING))
 
 
-def recv_opcode(skt: Socket) -> int:
+def recv_opcode(rdt: RDTInterface) -> int:
     """
     Receives the command opcode and return it with integer value.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
 
     Returns:
     opcode(int): Command opcode.
     """
-    return int.from_bytes(skt.recv(OPCODE_SIZE), INT_ENCODING)
+    return int.from_bytes(rdt.recv(OPCODE_SIZE), INT_ENCODING)
 
 
-def send_filename(skt: Socket, filename: str) -> None:
+def send_filename(rdt: RDTInterface, filename: str) -> None:
     """
     Send the filename with binary format.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
     filename(str): the name of file, must be open with binary ('b') mode.
 
     Returns:
     None
     """
     bytes = filename.encode()
-    skt.send(encode_int(len(bytes)))
-    skt.send(bytes)
+    rdt.send(encode_int(len(bytes)))
+    rdt.send(bytes)
 
 
-def recv_filename(skt: Socket) -> str:
+def recv_filename(rdt: RDTInterface) -> str:
     """
     Receives the filename and return it with string type.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
 
     Returns:
     filename(str): The name of file.
     """
-    filename_size = decode_int(skt.recv(INT_SIZE))
-    filename = skt.recv(filename_size).decode()
+    filename_size = decode_int(rdt.recv(INT_SIZE))
+    filename = rdt.recv(filename_size).decode()
     return filename
 
 
-def send_file(skt: Socket, f, progress: bool = False):
+def send_file(rdt: RDTInterface, f, progress: bool = False):
     """
     Send the file with binay format.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
     f(FILE): The file.
     [progress(bool)]: Flag for showing the progress bar.
 
@@ -162,14 +162,14 @@ def send_file(skt: Socket, f, progress: bool = False):
     filesize = f.tell()
     f.seek(0)
 
-    skt.send(encode_int(filesize))
+    rdt.send(encode_int(filesize))
 
     sent = 0
     if progress:
         progress_bar(sent, filesize)
     chunk = f.read(CHUNK_SIZE)
     while chunk:
-        skt.send(chunk)
+        rdt.send(chunk)
         sent += len(chunk)
         if progress:
             progress_bar(sent, filesize)
@@ -179,12 +179,12 @@ def send_file(skt: Socket, f, progress: bool = False):
         print()
 
 
-def recv_file(skt: Socket, progress: bool = False):
+def recv_file(rdt: RDTInterface, progress: bool = False):
     """
     Create an iterator to recive a file.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
     [progress(bool)]: Flag for showing the progress bar.
 
     Returns:
@@ -192,7 +192,7 @@ def recv_file(skt: Socket, progress: bool = False):
     """
     progress &= logger.level < FATAL_LEVEL
 
-    filesize = decode_int(skt.recv(INT_SIZE))
+    filesize = decode_int(rdt.recv(INT_SIZE))
     if filesize < 0:
         pass
 
@@ -200,7 +200,7 @@ def recv_file(skt: Socket, progress: bool = False):
     if progress:
         progress_bar(recd, filesize, True)
     while recd < filesize:
-        file_chunk = skt.recv(min(filesize - recd, CHUNK_SIZE))
+        file_chunk = rdt.recv(min(filesize - recd, CHUNK_SIZE))
         recd += len(file_chunk)
         if progress:
             progress_bar(recd, filesize, True)
@@ -210,7 +210,7 @@ def recv_file(skt: Socket, progress: bool = False):
         print()
 
 
-def send_list(skt: Socket, list: list) -> None:
+def send_list(rdt: RDTInterface, list: list) -> None:
     """
     Send the list of files information about the file with binary format.
 
@@ -224,30 +224,30 @@ def send_list(skt: Socket, list: list) -> None:
     """
     bytes = ('\n'.join(map(str, list))).encode()
 
-    skt.send(encode_int(len(bytes)))
+    rdt.send(encode_int(len(bytes)))
     chunks = [bytes[i:i+CHUNK_SIZE] for i in range(0, len(bytes), CHUNK_SIZE)]
 
     for chunk in chunks:
-        skt.send(chunk)
+        rdt.send(chunk)
 
 
-def recv_list(skt: Socket) -> list:
+def recv_list(rdt: RDTInterface) -> list:
     """
     Receives and return a list of files.
 
     Parameters:
-    skt(Socket): Socket.
+    rdt(RDTInterface): .
 
     Returns:
     list(list(tuple)): List of information about the file. [('filename', size,
                        last_mtime), ...]
     """
-    total_len = decode_int(skt.recv(INT_SIZE))
+    total_len = decode_int(rdt.recv(INT_SIZE))
 
     chunks = []
     recd = 0
     while recd < total_len:
-        chunk = skt.recv(min(total_len - recd, CHUNK_SIZE))
+        chunk = rdt.recv(min(total_len - recd, CHUNK_SIZE))
         recd += len(chunk)
         chunks.append(chunk.decode())
 

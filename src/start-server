@@ -6,8 +6,8 @@ from clients.
 
 from os import chdir, mkdir
 from argparse import ArgumentParser
-from lib.socket_tcp import Socket
-from lib.accepter import Accepter
+from lib.socket_udp import Socket
+from lib.receiver import Receiver
 from lib.logger import logger, DEBUG_LEVEL, INFO_LEVEL, FATAL_LEVEL
 from lib.stats import print_stats
 from __main__ import __doc__ as description, __file__
@@ -56,9 +56,8 @@ def main(args):
 
     skt = Socket()
     skt.bind(args.ADDR, args.PORT)
-    skt.listen()
 
-    accepter = Accepter(skt)
+    receiver = Receiver(skt)
     logger.info(f"Listening on port {args.PORT}.")
 
     print("Enter `s` to print stats, or `q` to exit.")
@@ -71,7 +70,7 @@ def main(args):
                 raise EOFError
             print("Enter `s` to print stats, or `q` to exit.")
     except EOFError:
-        accepter.stop()
+        receiver.stop()
 
     if args.level < FATAL_LEVEL:
         print_stats()
