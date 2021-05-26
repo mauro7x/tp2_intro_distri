@@ -2,9 +2,10 @@ from typing import Optional
 
 # Lib
 from lib.rdt_interface import RecvCallback, SendCallback
+from lib.protocol import CHUNK_SIZE
 
 # Config
-DATAGRAM_SIZE = 16
+DATAGRAM_SIZE = CHUNK_SIZE
 
 
 def _add_padding(data: bytearray) -> bytearray:
