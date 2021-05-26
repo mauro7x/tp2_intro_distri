@@ -69,7 +69,7 @@ class StopAndWait(RDTInterface):
             timeouts = 0
 
             datagram_ackd = False
-            while (not datagram_ackd) and (timeouts < 10):
+            while (not datagram_ackd) and (timeouts < 100):
                 try:
                     # We wait for the ack to arrive
                     type, sn, _ = _split(self._recv_datagram(TIMEOUT, start))
@@ -96,7 +96,7 @@ class StopAndWait(RDTInterface):
                     self._send_datagram(datagram)
                     start = now()
 
-            if timeouts == 10:
+            if timeouts == 100:
                 # TODO: identificar si estamos en el ultimo paquete
                 raise SocketTimeout()
 
@@ -128,7 +128,7 @@ class StopAndWait(RDTInterface):
             # If seq numbers dont't match we re-send the last ack
             if sn != self.sn_recv:
                 logger.debug(
-                    f'[saw:recv] Wrong SN received ({sn}). Re-sending last ackd SN ({self.sn_recv})...')
+                    f'[saw:recv] Wrong SN received ({sn}, expected {self.sn_recv}). Re-sending last ackd SN ({self.sn_recv})...')
                 self._send_datagram(ACK_TYPE + self._get_prev(self.sn_recv))
                 continue
 

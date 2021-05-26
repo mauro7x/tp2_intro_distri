@@ -13,14 +13,14 @@ ACK_TYPE = b'a'
 DATA_TYPE = b'd'
 
 # Sizes
-MAX_DATAGRAM_SIZE = 512
+MAX_DATAGRAM_SIZE = 1024
 TYPE_SIZE = 1
 SN_SIZE = 1
 MAX_PAYLOAD_SIZE = MAX_DATAGRAM_SIZE - (TYPE_SIZE + SN_SIZE)
 assert MAX_PAYLOAD_SIZE > 0
 
 # Timeouts (in seconds)
-TIMEOUT = 0.2
+TIMEOUT = 0.001
 
 
 def sendto_fixed_addr(skt: Socket, addr: tuple):
