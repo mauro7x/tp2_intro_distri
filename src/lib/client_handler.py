@@ -26,6 +26,7 @@ class ClientHandler:
         self.th.start()
 
     def _handle_upload_file(self) -> None:
+        stats["requests"]["total"] += 1
         stats["requests"]["upload-file"] += 1
         prt.send_status(self.rdt, prt.NO_ERR)
 
@@ -40,6 +41,7 @@ class ClientHandler:
         stats["files"]["uploads"] += 1
 
     def _handle_download_file(self) -> None:
+        stats["requests"]["total"] += 1
         stats["requests"]["download-file"] += 1
         prt.send_status(self.rdt, prt.NO_ERR)
 
@@ -58,6 +60,7 @@ class ClientHandler:
             prt.send_status(self.rdt, prt.FILE_NOT_FOUND_ERR)
 
     def _handle_list_files(self) -> None:
+        stats["requests"]["total"] += 1
         stats["requests"]["list-files"] += 1
         prt.send_status(self.rdt, prt.NO_ERR)
 

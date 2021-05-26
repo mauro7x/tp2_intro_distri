@@ -18,7 +18,6 @@ def main(args):
     logger.setLevel(args.level)
 
     skt = Socket()
-
     addr = (args.ADDR, args.PORT)
     rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 

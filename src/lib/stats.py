@@ -5,11 +5,11 @@ from datetime import datetime
 from lib.formatters import get_size_readable
 
 stats = {
-    "connections": 0,
     "requests": {
         "upload-file": 0,
         "download-file": 0,
         "list-files": 0,
+        "total": 0
     },
     "files": {
         "uploads": 0,
@@ -30,19 +30,19 @@ def print_stats():
     print("=                  STATS                  =")
     print("===========================================\n")
     print(f"> Run time: {stats['runtime']}")
-    print(f"> Established connections: {stats['connections']}")
-
+    print()
     print("> Requests:")
     requests = stats['requests']
     print(f"  * upload-file: {requests['upload-file']}")
     print(f"  * download-file: {requests['download-file']}")
     print(f"  * list-files: {requests['list-files']}")
-
+    print(f"  * total: {requests['total']}")
+    print()
     print("> Bytes transferred:")
     bytes = stats['bytes']
     print(f"  * Sent: {get_size_readable(bytes['sent'])}")
     print(f"  * Received: {get_size_readable(bytes['recd'])}")
-
+    print()
     print("> Files:")
     files = stats['files']
     print(f"  * Uploads: {files['uploads']}")

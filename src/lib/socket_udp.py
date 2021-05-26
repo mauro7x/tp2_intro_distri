@@ -1,7 +1,8 @@
 from socket import (SOL_SOCKET, SO_REUSEADDR, socket,
                     AF_INET, SOCK_DGRAM, SHUT_RDWR, timeout)
-from lib.logger import logger
 from time import monotonic as now
+from lib.logger import logger
+from lib.stats import stats
 
 SocketTimeout = timeout
 
@@ -38,8 +39,9 @@ class Socket:
         """
         TODO: docs.
         """
-
-        return self.skt.sendto(data, addr)
+        sent = self.skt.sendto(data, addr)
+        stats['bytes']['sent'] += sent
+        return sent
 
     def recvfrom(self, maxlen, timeout=None, start_time: int = 0) -> bytearray:
         """
@@ -48,12 +50,14 @@ class Socket:
 
         if timeout is None:
             # Recv without timeout
-            return self.skt.recvfrom(maxlen)
-        
-        # Recv with timeout
-        self.skt.settimeout(timeout - (now() - start_time))
-        recd = self.skt.recvfrom(maxlen)
-        self.skt.settimeout(None)
+            recd = self.skt.recvfrom(maxlen)
+        else:        
+            # Recv with timeout
+            self.skt.settimeout(timeout - (now() - start_time))
+            recd = self.skt.recvfrom(maxlen)
+            self.skt.settimeout(None)
+
+        stats['bytes']['recd'] += len(recd[0])
         return recd
 
     def close(self):
