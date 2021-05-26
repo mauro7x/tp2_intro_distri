@@ -1,6 +1,11 @@
 from abc import abstractmethod
+from typing import Callable, Optional
 
 from lib.socket_udp import Socket
+
+
+RecvCallback = Callable[[int, Optional[int], Optional[int]], bytearray]
+SendCallback = Callable[[bytearray], int]
 
 
 def sendto_fixed_addr(skt: Socket, addr: tuple):

@@ -1,9 +1,12 @@
-from time import clock_gettime
-from lib.rdt_interface import RDTInterface
+from time import monotonic as now
+from lib.rdt_interface import RDTInterface, RecvCallback, SendCallback
 from lib.logger import logger
 from signal import signal, alarm, SIGALRM
 
 ACK_SIZE = len(b'0')
+
+TIMEOUT = 0.2  # in seconds
+DISCONNECT_TIMEOUT = 5  # in seconds
 
 
 class timeout:
@@ -24,7 +27,7 @@ class timeout:
 
 class StopAndWait(RDTInterface):
 
-    def __init__(self, send, recv) -> None:
+    def __init__(self, send: SendCallback, recv: RecvCallback) -> None:
         self._send = send
         self._recv = recv
         self.current = b'0'
@@ -36,16 +39,16 @@ class StopAndWait(RDTInterface):
         else:
             self.current = b'0'
 
-    def send(self, data):
+    def send(self, data: bytearray):
         logger.debug(f"Sending data: {data}")
 
         data = (f'{self.current}').encode() + data
-        start = clock_gettime()
+        start = now()
         self._send(data)
 
         ack = False
         while not ack:
-            recd = self._recv(ACK_SIZE, timeout=0.2, start)
+            recd = self._recv(ACK_SIZE, timeout=TIMEOUT, start_time=start)
 
         return self._send(data)
 

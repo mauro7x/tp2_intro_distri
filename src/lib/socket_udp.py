@@ -1,15 +1,33 @@
 from socket import (SOL_SOCKET, SO_REUSEADDR, socket,
-                    AF_INET, SOCK_DGRAM, SHUT_RDWR)
+                    AF_INET, SOCK_DGRAM, SHUT_RDWR, timeout)
 from lib.logger import logger
+from time import monotonic as now
+
+SocketTimeout = timeout
 
 
 class Socket:
 
     def __init__(self) -> None:
+        """
+        Inicialization of socket class.
+        Wrapper around socket(2).
+        """
         self.skt = socket(AF_INET, SOCK_DGRAM)
         return
 
     def bind(self, host, port) -> None:
+        """
+        Binds the socket to the received address and port number.
+        Wrapper around bind(2) and setsockopt(2).
+
+        Parameters:
+        host(str): Host address.
+        port(int): Port number.
+
+        Returns:
+        None.
+        """
         self.skt.bind((host, port))
         self.skt.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         return
@@ -17,15 +35,25 @@ class Socket:
     def sendto(self, data: bytearray, addr: tuple):
         return self.skt.sendto(data, addr)
 
-    def recvfrom(self, maxlen, timeout=None, start_time=0):
+    def recvfrom(self, maxlen, timeout=None, start_time: int = 0):
         if timeout is None:
             return self.skt.recvfrom(maxlen)
         self.skt.settimeout(timeout - (now() - start_time))
         recd = self.skt.recvfrom(maxlen)
-        self.skt.settimeout(0)
+        self.skt.settimeout(None)
         return recd
 
     def close(self):
+        """
+        Shutdowns and closes the socket, releasing resources.
+        Wrapper around shutdown(2) and close(2).
+
+        Parameters:
+        None.
+
+        Returns:
+        None.
+        """
         try:
             logger.debug("[Socket] Closing socket...")
             self.skt.shutdown(SHUT_RDWR)

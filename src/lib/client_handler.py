@@ -2,8 +2,10 @@ from collections import deque
 from os import listdir, path
 from threading import Condition, Thread
 from itertools import count as it_count
-from time import time
+from time import monotonic as now
+from typing import Optional
 from lib.logger import logger
+from lib.socket_udp import SocketTimeout
 from lib.stats import stats
 import lib.protocol as prt
 from lib.rdt_selection import create_rdt
@@ -97,13 +99,19 @@ class ClientHandler:
             self.queue_cv.notify()
         return
 
-    def pop(self, length, timeout=None, timer_start=0):
-        result = []
+    def pop(self, length: int, timeout: Optional[int] = None,
+            timer_start: Optional[int] = 0):
+        result = deque()
         total = 0
+
         with self.queue_cv:
             while total < length:
                 while not self.queue:
-                    self.queue_cv.wait(timeout)
+                    wait_time = timeout - (now() - timer_start)
+                    if not self.queue_cv.wait(wait_time):
+                        # Fix queue
+                        self.queue = result
+                        raise SocketTimeout("Socket timed out")
                 result.append(self.queue.popleft())
                 total += len(result[-1])
 
