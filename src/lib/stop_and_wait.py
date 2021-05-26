@@ -1,12 +1,18 @@
+from itertools import islice
 from time import monotonic as now
+from lib.protocol import CHUNK_SIZE
 from lib.rdt_interface import RDTInterface, RecvCallback, SendCallback
 from lib.logger import logger
 from signal import signal, alarm, SIGALRM
 
+from lib.socket_udp import SocketTimeout
+
 ACK_SIZE = len(b'0')
 
-TIMEOUT = 0.2  # in seconds
+TIMEOUT = 2  # in seconds
 DISCONNECT_TIMEOUT = 5  # in seconds
+
+CHUNK_SIZE = 8
 
 
 class timeout:
@@ -30,27 +36,64 @@ class StopAndWait(RDTInterface):
     def __init__(self, send: SendCallback, recv: RecvCallback) -> None:
         self._send = send
         self._recv = recv
-        self.current = b'0'
+        self.seq_num = b'0'
+        self.seq_ack = b'0'
+        self.buffer = None
         return
 
-    def _change_current(self):
-        if self.current == b'0':
-            self.current = b'1'
+    def _get_next(self, value):
+        if value == b'0':
+            return b'1'
         else:
-            self.current = b'0'
+            return b'0'
+
+    def _get_prev(self, value):
+        return self._get_next(value)
 
     def send(self, data: bytearray):
+        # [A, B, C, D] chunk = 2
         logger.debug(f"Sending data: {data}")
 
-        data = (f'{self.current}').encode() + data
-        start = now()
-        self._send(data)
+        for i in range(0, len(data), CHUNK_SIZE):
+            chunk = self.seq_num + data[i*CHUNK_SIZE:(i+1)*CHUNK_SIZE]
+            self._send(chunk)
+            logger.debug(f'Sending chunk: {chunk}')
+            start = now()
 
-        ack = False
-        while not ack:
-            recd = self._recv(ACK_SIZE, timeout=TIMEOUT, start_time=start)
-
+            ack = False
+            while not ack:
+                try:
+                    recd = self._recv(
+                        ACK_SIZE, timeout=TIMEOUT, start_time=start)
+                    logger.debug(f'Received ack: {recd}')
+                    ack = (recd[:ACK_SIZE] == self.seq_num)
+                except SocketTimeout:
+                    logger.debug(f'Resending chunk: {chunk}')
+                    self._send(chunk)
+                    start = now()
+            print(f'Antes: {self.seq_num}')
+            self.seq_num = self._get_next(self.seq_num)
+            print(f'Despues: {self.seq_num}')
         return self._send(data)
 
     def recv(self, length):
-        return self._recv(length)
+        result = []
+        total = 0
+        logger.debug(f'Expecting: {length} bytes')
+
+        while total < length:
+            # Se bloquea infinito
+            recd = self._recv(min(CHUNK_SIZE, length - total + ACK_SIZE))
+            logger.debug(f'Received chunk: {recd}')
+            if self.seq_ack != recd[:ACK_SIZE]:
+                self._send(self._get_prev(self.seq_ack))
+                logger.debug(f'Resending ack: {self._get_prev(self.seq_ack)}')
+                continue
+            result.append(recd[ACK_SIZE:])
+            total += (len(recd) - ACK_SIZE)
+            self._send(self.seq_ack)
+            self.seq_ack = self._get_next(self.seq_ack)
+
+        result = b''.join(result)
+        logger.debug(f'Received: {result}')
+        return result

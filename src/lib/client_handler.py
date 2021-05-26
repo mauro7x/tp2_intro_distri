@@ -97,17 +97,20 @@ class ClientHandler:
         with self.queue_cv:
             self.queue.append(data)
             self.queue_cv.notify()
+            print("Waking up")
         return
 
     def pop(self, length: int, timeout: Optional[int] = None,
-            timer_start: Optional[int] = 0):
+            start_time: Optional[int] = 0):
         result = deque()
         total = 0
+        logger.debug(f'Queue: {self.queue}, getting: {length} bytes')
 
         with self.queue_cv:
             while total < length:
                 while not self.queue:
-                    wait_time = timeout - (now() - timer_start)
+                    wait_time = timeout - \
+                        (now() - start_time) if timeout is not None else None
                     if not self.queue_cv.wait(wait_time):
                         # Fix queue
                         self.queue = result

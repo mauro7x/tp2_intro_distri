@@ -32,12 +32,16 @@ class Socket:
         self.skt.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         return
 
-    def sendto(self, data: bytearray, addr: tuple):
+    def sendto(self, data: bytearray, addr: tuple) -> int:
         return self.skt.sendto(data, addr)
 
-    def recvfrom(self, maxlen, timeout=None, start_time: int = 0):
+    def recvfrom(self, maxlen, timeout=None, start_time: int = 0) -> bytearray:
+        """
+        Raises SocketTimeout on timeout.
+        """
         if timeout is None:
             return self.skt.recvfrom(maxlen)
+        logger.debug(f'Sending with timeout: {timeout - (now() - start_time)}')
         self.skt.settimeout(timeout - (now() - start_time))
         recd = self.skt.recvfrom(maxlen)
         self.skt.settimeout(None)

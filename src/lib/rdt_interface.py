@@ -16,8 +16,9 @@ def sendto_fixed_addr(skt: Socket, addr: tuple):
 
 
 def recvfrom_fixed_addr(skt: Socket):
-    def recv(length: int):
-        return skt.recvfrom(length)[0]
+    def recv(length: int, timeout: Optional[int] = None,
+             start_time: int = 0) -> bytearray:
+        return skt.recvfrom(length, timeout, start_time)[0]
     return recv
 
 
