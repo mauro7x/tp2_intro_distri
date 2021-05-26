@@ -1,18 +1,30 @@
 from time import monotonic as now
 
 # Lib
+from lib.rdt_common import DATAGRAM_SIZE, recv_datagram, send_datagram
 from lib.rdt_interface import RDTInterface, RecvCallback, SendCallback
 from lib.logger import logger
 from lib.socket_udp import SocketTimeout
 
 # Sizes
-CHUNK_SIZE = 4
 ACK_SIZE = len(b'0')
-MAX_PAYLOAD_SIZE = CHUNK_SIZE - ACK_SIZE
+assert DATAGRAM_SIZE > ACK_SIZE
+DATA_SIZE = DATAGRAM_SIZE - ACK_SIZE
 
 # Timeouts
 TIMEOUT = 2  # in seconds
 DISCONNECT_TIMEOUT = 5  # in seconds
+
+
+# Aux private funcs
+
+def _split(datagram):
+    """
+    TODO: docs.
+    """
+
+    return datagram[:ACK_SIZE], datagram[ACK_SIZE:]
+
 
 class StopAndWait(RDTInterface):
     """
@@ -41,64 +53,61 @@ class StopAndWait(RDTInterface):
         """
         TODO: docs.
         """
-        
+
         return self._get_next(value)
 
-    def send(self, data: bytearray):
+    def send(self, total_data: bytearray):
         """
         TODO: docs.
         """
-        
-        for i in range(0, len(data), MAX_PAYLOAD_SIZE):
-            # We divide data in segments of MAX_PAYLOAD_SIZE
-            payload = data[i:(i+MAX_PAYLOAD_SIZE)]
 
-            # We form the chunk to send: seq_num + payload
-            chunk = self.seq_num + payload
+        for i in range(0, len(total_data), DATA_SIZE):
+            # We divide total data in segments of DATA_SIZE
+            data = total_data[i:(i + DATA_SIZE)]
+            datagram = self.seq_num + data
 
-            self._send(chunk)
+            send_datagram(datagram, self._send)
             start = now()
 
-            ackd = False
-            while not ackd:
+            datagram_ackd = False
+            while not datagram_ackd:
                 try:
                     # We wait for the ack to arrive
-                    recd = self._recv(
-                        ACK_SIZE, timeout=TIMEOUT, start_time=start)    
-                    ackd = (recd == self.seq_num)
+                    ack, _ = _split(recv_datagram(self._recv, TIMEOUT, start))
+                    datagram_ackd = (ack == self.seq_num)
                 except SocketTimeout:
-                    # If recd timed out, we re-send the chunk
-                    self._send(chunk)
+                    # If recv timed out, we re-send the chunk
+                    send_datagram(datagram, self._send)
                     start = now()
-            
+
             self.seq_num = self._get_next(self.seq_num)
-          
+
         return
 
     def recv(self, length):
         """
         TODO: docs.
         """
-        
+
         # TODO: Add global timer so it doesn't block 4ever?
 
         result = []
-        total = 0
+        total_recd = 0
 
-        while total < length:
-            bytes_to_recv = min(CHUNK_SIZE, length - total + ACK_SIZE)
-            recd = self._recv(bytes_to_recv)
-    
+        while total_recd < length:
+            ack, data = _split(recv_datagram(self._recv))
+
             # If acks dont't match we re-send the last ack
-            if self.seq_ack != recd[:ACK_SIZE]:
-                self._send(self._get_prev(self.seq_ack))
+            if ack != self.seq_ack:
+                send_datagram(self._get_prev(self.seq_ack), self._send)
                 continue
 
             # If acks match, we keep the data and continue
-            result.append(recd[ACK_SIZE:])
-            total += (len(recd) - ACK_SIZE)
-            self._send(self.seq_ack)
+            left = length - total_recd
+            result.append(data[:left])
+            total_recd += len(data)
+
+            send_datagram(self.seq_ack, self._send)
             self.seq_ack = self._get_next(self.seq_ack)
 
-        result = b''.join(result)
-        return result
+        return b''.join(result)

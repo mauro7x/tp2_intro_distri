@@ -4,7 +4,7 @@ from typing import Callable, Optional
 # Lib
 from lib.socket_udp import Socket
 
-
+# Types
 RecvCallback = Callable[[int, Optional[int], Optional[int]], bytearray]
 SendCallback = Callable[[bytearray], int]
 

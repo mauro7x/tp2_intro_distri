@@ -99,6 +99,10 @@ class ClientHandler:
         return
 
     def push(self, data):
+        """
+        TODO: docs.
+        """
+        
         with self.queue_cv:
             self.queue.append(data)
             self.queue_cv.notify()
@@ -106,6 +110,10 @@ class ClientHandler:
 
     def pop(self, length: int, timeout: Optional[int] = None,
             start_time: Optional[int] = 0):        
+        """
+        TODO: docs.
+        """
+        
         result = deque()
         total = 0
 
