@@ -42,5 +42,7 @@ def send_datagram(datagram: bytearray, send: SendCallback) -> int:
     """
     TODO: docs.
     """
-
-    return send(_add_padding(datagram))
+    # It's not necessary to send fixed length datagrams, because
+    # receiver will add padding to make them fixed-size. This way
+    # we avoid sending padding over the network.
+    return send(datagram)
