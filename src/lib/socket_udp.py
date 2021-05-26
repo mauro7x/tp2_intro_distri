@@ -13,6 +13,7 @@ class Socket:
         Inicialization of socket class.
         Wrapper around socket(2).
         """
+        
         self.skt = socket(AF_INET, SOCK_DGRAM)
         return
 
@@ -28,20 +29,28 @@ class Socket:
         Returns:
         None.
         """
+
         self.skt.bind((host, port))
         self.skt.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
         return
 
     def sendto(self, data: bytearray, addr: tuple) -> int:
+        """
+        TODO: docs.
+        """
+
         return self.skt.sendto(data, addr)
 
     def recvfrom(self, maxlen, timeout=None, start_time: int = 0) -> bytearray:
         """
-        Raises SocketTimeout on timeout.
+        TODO: docs.
         """
+
         if timeout is None:
+            # Recv without timeout
             return self.skt.recvfrom(maxlen)
-        logger.debug(f'Sending with timeout: {timeout - (now() - start_time)}')
+        
+        # Recv with timeout
         self.skt.settimeout(timeout - (now() - start_time))
         recd = self.skt.recvfrom(maxlen)
         self.skt.settimeout(None)
@@ -59,10 +68,8 @@ class Socket:
         None.
         """
         try:
-            logger.debug("[Socket] Closing socket...")
             self.skt.shutdown(SHUT_RDWR)
             self.skt.close()
-            logger.debug("[Socket] Socket closed.")
         except OSError:
             return
 

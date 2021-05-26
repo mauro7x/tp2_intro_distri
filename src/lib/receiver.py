@@ -22,8 +22,8 @@ class Receiver:
             self.clients[addr] = ClientHandler(
                 sendto_fixed_addr(self.skt, addr), addr)
             logger.debug(
-                f"New request from: {addr} assigned to ClientHandler: "
-                f"{self.clients[addr].id}")
+                f"{addr[0]}:{addr[1]} request assigned to ClientHandler:"
+                f"{self.clients[addr].id}.")
 
         self.clients[addr].push(data)
 
@@ -37,6 +37,7 @@ class Receiver:
             self._demux(addr, data)
             self._join_handlers()
 
+        logger.debug("[Receiver] Joining handlers...")
         self._join_handlers(True)
 
     def _join_handlers(self, force=False):
@@ -45,13 +46,14 @@ class Receiver:
         for addr, handler in self.clients.items():
             if force or handler.is_done():
                 handler.join(force)
-                logger.debug("[Accepter] Client joined.")
                 continue
             active_handlers[addr] = handler
 
         self.clients = active_handlers
 
     def stop(self):
+        logger.debug('[Receiver] Stopping...')
         self.receiving = False
         self.skt.close()
         self.th.join()
+        logger.debug('[Receiver] Joined.')

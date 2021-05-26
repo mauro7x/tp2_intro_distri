@@ -12,7 +12,7 @@ from lib.rdt_selection import create_rdt
 
 
 class ClientHandler:
-
+    
     id_it = it_count()
 
     def __init__(self, send, addr):
@@ -97,14 +97,12 @@ class ClientHandler:
         with self.queue_cv:
             self.queue.append(data)
             self.queue_cv.notify()
-            print("Waking up")
         return
 
     def pop(self, length: int, timeout: Optional[int] = None,
-            start_time: Optional[int] = 0):
+            start_time: Optional[int] = 0):        
         result = deque()
         total = 0
-        logger.debug(f'Queue: {self.queue}, getting: {length} bytes')
 
         with self.queue_cv:
             while total < length:
@@ -112,13 +110,13 @@ class ClientHandler:
                     wait_time = timeout - \
                         (now() - start_time) if timeout is not None else None
                     if not self.queue_cv.wait(wait_time):
-                        # Fix queue
                         self.queue = result
                         raise SocketTimeout("Socket timed out")
                 result.append(self.queue.popleft())
                 total += len(result[-1])
 
         result = b''.join(result)
+
         if total - length:
             self.queue.appendleft(result[length:])
             result = result[:length]
@@ -127,8 +125,7 @@ class ClientHandler:
 
     def join(self, force=False):
         if force:
-            logger.debug(f"[ClientHandler:{self.id}] Forcing join.")
-            self.rdt.close()
+            # TODO: How can we end the execution?
             self.running = False
 
         self.th.join()

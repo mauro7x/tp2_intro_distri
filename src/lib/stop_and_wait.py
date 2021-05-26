@@ -1,37 +1,21 @@
-from itertools import islice
 from time import monotonic as now
-from lib.protocol import CHUNK_SIZE
 from lib.rdt_interface import RDTInterface, RecvCallback, SendCallback
 from lib.logger import logger
-from signal import signal, alarm, SIGALRM
-
 from lib.socket_udp import SocketTimeout
 
+# Sizes
+CHUNK_SIZE = 4
 ACK_SIZE = len(b'0')
+MAX_PAYLOAD_SIZE = CHUNK_SIZE - ACK_SIZE
 
+# Timeouts
 TIMEOUT = 2  # in seconds
 DISCONNECT_TIMEOUT = 5  # in seconds
 
-CHUNK_SIZE = 8
-
-
-class timeout:
-    def __init__(self, seconds=1, error_message='Timeout'):
-        seconds = seconds
-        error_message = error_message
-
-    def handle_timeout(self, signum, frame):
-        raise TimeoutError(self.error_message)
-
-    def __enter__(self):
-        signal(signal.SIGALRM, self.handle_timeout)
-        alarm(self.seconds)
-
-    def __exit__(self, type, value, traceback):
-        alarm(0)
-
-
 class StopAndWait(RDTInterface):
+    """
+    TODO: docs.
+    """
 
     def __init__(self, send: SendCallback, recv: RecvCallback) -> None:
         self._send = send
@@ -42,58 +26,77 @@ class StopAndWait(RDTInterface):
         return
 
     def _get_next(self, value):
+        """
+        TODO: docs.
+        """
+
         if value == b'0':
             return b'1'
         else:
             return b'0'
 
     def _get_prev(self, value):
+        """
+        TODO: docs.
+        """
+        
         return self._get_next(value)
 
     def send(self, data: bytearray):
-        # [A, B, C, D] chunk = 2
-        logger.debug(f"Sending data: {data}")
+        """
+        TODO: docs.
+        """
+        
+        for i in range(0, len(data), MAX_PAYLOAD_SIZE):
+            # We divide data in segments of MAX_PAYLOAD_SIZE
+            payload = data[i:(i+MAX_PAYLOAD_SIZE)]
 
-        for i in range(0, len(data), CHUNK_SIZE):
-            chunk = self.seq_num + data[i*CHUNK_SIZE:(i+1)*CHUNK_SIZE]
+            # We form the chunk to send: seq_num + payload
+            chunk = self.seq_num + payload
+
             self._send(chunk)
-            logger.debug(f'Sending chunk: {chunk}')
             start = now()
 
-            ack = False
-            while not ack:
+            ackd = False
+            while not ackd:
                 try:
+                    # We wait for the ack to arrive
                     recd = self._recv(
-                        ACK_SIZE, timeout=TIMEOUT, start_time=start)
-                    logger.debug(f'Received ack: {recd}')
-                    ack = (recd[:ACK_SIZE] == self.seq_num)
+                        ACK_SIZE, timeout=TIMEOUT, start_time=start)    
+                    ackd = (recd == self.seq_num)
                 except SocketTimeout:
-                    logger.debug(f'Resending chunk: {chunk}')
+                    # If recd timed out, we re-send the chunk
                     self._send(chunk)
                     start = now()
-            print(f'Antes: {self.seq_num}')
+            
             self.seq_num = self._get_next(self.seq_num)
-            print(f'Despues: {self.seq_num}')
-        return self._send(data)
+          
+        return
 
     def recv(self, length):
+        """
+        TODO: docs.
+        """
+        
+        # TODO: Add global timer so it doesn't block 4ever?
+
         result = []
         total = 0
-        logger.debug(f'Expecting: {length} bytes')
 
         while total < length:
-            # Se bloquea infinito
-            recd = self._recv(min(CHUNK_SIZE, length - total + ACK_SIZE))
-            logger.debug(f'Received chunk: {recd}')
+            bytes_to_recv = min(CHUNK_SIZE, length - total + ACK_SIZE)
+            recd = self._recv(bytes_to_recv)
+
+            # If acks dont't match we re-send the last ack
             if self.seq_ack != recd[:ACK_SIZE]:
                 self._send(self._get_prev(self.seq_ack))
-                logger.debug(f'Resending ack: {self._get_prev(self.seq_ack)}')
                 continue
+
+            # If acks match, we keep the data and continue
             result.append(recd[ACK_SIZE:])
             total += (len(recd) - ACK_SIZE)
             self._send(self.seq_ack)
             self.seq_ack = self._get_next(self.seq_ack)
 
         result = b''.join(result)
-        logger.debug(f'Received: {result}')
         return result
