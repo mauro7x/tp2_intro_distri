@@ -1,4 +1,6 @@
 from time import monotonic as now
+
+# Lib
 from lib.rdt_interface import RDTInterface, RecvCallback, SendCallback
 from lib.logger import logger
 from lib.socket_udp import SocketTimeout
@@ -22,7 +24,7 @@ class StopAndWait(RDTInterface):
         self._recv = recv
         self.seq_num = b'0'
         self.seq_ack = b'0'
-        self.buffer = None
+        self.stopped = False
         return
 
     def _get_next(self, value):
@@ -100,3 +102,10 @@ class StopAndWait(RDTInterface):
 
         result = b''.join(result)
         return result
+
+    def stop(self):
+        """
+        TODO: docs.
+        """
+
+        self.stopped = True

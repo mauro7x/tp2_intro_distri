@@ -1,4 +1,6 @@
 from os import SEEK_END
+
+# Lib
 from lib.progress import progress_bar
 from lib.logger import logger, FATAL_LEVEL
 from lib.rdt_interface import RDTInterface

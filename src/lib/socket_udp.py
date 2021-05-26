@@ -1,9 +1,12 @@
 from socket import (SOL_SOCKET, SO_REUSEADDR, socket,
                     AF_INET, SOCK_DGRAM, SHUT_RDWR, timeout)
 from time import monotonic as now
+
+# Lib
 from lib.logger import logger
 from lib.stats import stats
 
+# Exceptions
 SocketTimeout = timeout
 
 

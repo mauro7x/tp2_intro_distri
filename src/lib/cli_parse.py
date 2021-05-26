@@ -1,6 +1,8 @@
 # parse.py
 from argparse import ArgumentParser
 from __main__ import __doc__ as description, __file__
+
+# Lib
 from lib.logger import DEBUG_LEVEL, INFO_LEVEL, FATAL_LEVEL
 from lib.constants import DEFAULT_ADDR, DEFAULT_PORT
 

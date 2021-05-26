@@ -4,11 +4,16 @@ from threading import Condition, Thread
 from itertools import count as it_count
 from time import monotonic as now
 from typing import Optional
+
+# Lib
 from lib.logger import logger
-from lib.socket_udp import SocketTimeout
 from lib.stats import stats
-import lib.protocol as prt
 from lib.rdt_selection import create_rdt
+import lib.protocol as prt
+
+# Exceptions
+from lib.socket_udp import SocketTimeout
+from lib.exceptions import ServerClosed
 
 
 class ClientHandler:
@@ -26,7 +31,6 @@ class ClientHandler:
         self.th.start()
 
     def _handle_upload_file(self) -> None:
-        stats["requests"]["total"] += 1
         stats["requests"]["upload-file"] += 1
         prt.send_status(self.rdt, prt.NO_ERR)
 
@@ -41,7 +45,6 @@ class ClientHandler:
         stats["files"]["uploads"] += 1
 
     def _handle_download_file(self) -> None:
-        stats["requests"]["total"] += 1
         stats["requests"]["download-file"] += 1
         prt.send_status(self.rdt, prt.NO_ERR)
 
@@ -60,7 +63,6 @@ class ClientHandler:
             prt.send_status(self.rdt, prt.FILE_NOT_FOUND_ERR)
 
     def _handle_list_files(self) -> None:
-        stats["requests"]["total"] += 1
         stats["requests"]["list-files"] += 1
         prt.send_status(self.rdt, prt.NO_ERR)
 
@@ -77,21 +79,25 @@ class ClientHandler:
 
     def _run(self):
         logger.debug(f"[ClientHandler:{self.id}] Started.")
+        try:
+            opcode = prt.recv_opcode(self.rdt)
 
-        opcode = prt.recv_opcode(self.rdt)
+            if opcode == prt.UPLOAD_FILE_OP:
+                self._handle_upload_file()
 
-        if opcode == prt.UPLOAD_FILE_OP:
-            self._handle_upload_file()
+            elif opcode == prt.DOWNLOAD_FILE_OP:
+                self._handle_download_file()
 
-        elif opcode == prt.DOWNLOAD_FILE_OP:
-            self._handle_download_file()
+            elif opcode == prt.LIST_FILES_OP:
+                self._handle_list_files()
 
-        elif opcode == prt.LIST_FILES_OP:
-            self._handle_list_files()
+            else:
+                stats["requests"]["invalid"] += 1
+                prt.send_status(self.rdt, prt.UNKNOWN_OP_ERR)
 
-        else:
-            prt.send_status(self.rdt, prt.UNKNOWN_OP_ERR)
-
+        except ServerClosed:
+            logger.debug(f"[ClientHandler:{self.id}] Halted.")
+            
         logger.debug(f"[ClientHandler:{self.id}] Finished.")
         self.running = False
         return
@@ -128,8 +134,8 @@ class ClientHandler:
 
     def join(self, force=False):
         if force:
-            # TODO: How can we end the execution?
             self.running = False
+            self.rdt.stop()
 
         self.th.join()
         logger.debug(f"[ClientHandler:{self.id}] Joined.")

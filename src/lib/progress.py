@@ -1,5 +1,7 @@
 # Basic progress bar implementation
 from sys import stdout
+
+# Lib
 from lib.formatters import get_size_readable
 
 

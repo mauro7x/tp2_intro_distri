@@ -1,0 +1,2 @@
+class ServerClosed(Exception):
+    pass

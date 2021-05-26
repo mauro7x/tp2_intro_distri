@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from typing import Callable, Optional
 
+# Lib
 from lib.socket_udp import Socket
 
 
@@ -30,4 +31,8 @@ class RDTInterface:
 
     @abstractmethod
     def recv(self, length, timeout):
+        pass
+    
+    @abstractmethod
+    def stop(self):
         pass

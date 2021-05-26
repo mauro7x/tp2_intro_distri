@@ -1,9 +1,11 @@
 from threading import Thread
+
+# Lib
 from lib.socket_udp import Socket
 from lib.client_handler import ClientHandler
 from lib.logger import logger
 from lib.rdt_interface import sendto_fixed_addr
-# from lib.stats import stats
+from lib.stats import stats
 
 CHUNK_SIZE = 1024
 
@@ -24,6 +26,7 @@ class Receiver:
             logger.debug(
                 f"{addr[0]}:{addr[1]} request assigned to ClientHandler:"
                 f"{self.clients[addr].id}.")
+            stats['requests']['total'] += 1
 
         self.clients[addr].push(data)
 

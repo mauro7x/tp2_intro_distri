@@ -1,7 +1,6 @@
-# idea: keep track of some interesting stats
-# to show when server is closed
-
 from datetime import datetime
+
+# Lib
 from lib.formatters import get_size_readable
 
 stats = {
@@ -9,6 +8,7 @@ stats = {
         "upload-file": 0,
         "download-file": 0,
         "list-files": 0,
+        "invalid": 0,
         "total": 0
     },
     "files": {
@@ -36,6 +36,7 @@ def print_stats():
     print(f"  * upload-file: {requests['upload-file']}")
     print(f"  * download-file: {requests['download-file']}")
     print(f"  * list-files: {requests['list-files']}")
+    print(f"  * invalid: {requests['invalid']}")
     print(f"  * total: {requests['total']}")
     print()
     print("> Bytes transferred:")
