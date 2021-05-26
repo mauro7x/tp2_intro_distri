@@ -32,7 +32,3 @@ class RDTInterface:
     @abstractmethod
     def recv(self, length, timeout):
         pass
-    
-    @abstractmethod
-    def stop(self):
-        pass

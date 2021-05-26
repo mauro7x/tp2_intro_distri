@@ -88,7 +88,7 @@ class StopAndWait(RDTInterface):
         while total < length:
             bytes_to_recv = min(CHUNK_SIZE, length - total + ACK_SIZE)
             recd = self._recv(bytes_to_recv)
-
+    
             # If acks dont't match we re-send the last ack
             if self.seq_ack != recd[:ACK_SIZE]:
                 self._send(self._get_prev(self.seq_ack))
@@ -102,10 +102,3 @@ class StopAndWait(RDTInterface):
 
         result = b''.join(result)
         return result
-
-    def stop(self):
-        """
-        TODO: docs.
-        """
-
-        self.stopped = True

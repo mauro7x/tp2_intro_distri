@@ -13,7 +13,6 @@ import lib.protocol as prt
 
 # Exceptions
 from lib.socket_udp import SocketTimeout
-from lib.exceptions import ServerClosed
 
 
 class ClientHandler:
@@ -23,12 +22,12 @@ class ClientHandler:
     def __init__(self, send, addr):
         self.id = next(ClientHandler.id_it)
         self.addr = addr
-        self.th = Thread(None, self._run, self)
         self.queue_cv = Condition()
         self.queue = deque()
         self.rdt = create_rdt(send, self.pop)
-        self.running = True
+        self.th = Thread(None, self._run, self)
         self.th.start()
+        self.running = True
 
     def _handle_upload_file(self) -> None:
         stats["requests"]["upload-file"] += 1
@@ -79,25 +78,22 @@ class ClientHandler:
 
     def _run(self):
         logger.debug(f"[ClientHandler:{self.id}] Started.")
-        try:
-            opcode = prt.recv_opcode(self.rdt)
+       
+        opcode = prt.recv_opcode(self.rdt)
 
-            if opcode == prt.UPLOAD_FILE_OP:
-                self._handle_upload_file()
+        if opcode == prt.UPLOAD_FILE_OP:
+            self._handle_upload_file()
 
-            elif opcode == prt.DOWNLOAD_FILE_OP:
-                self._handle_download_file()
+        elif opcode == prt.DOWNLOAD_FILE_OP:
+            self._handle_download_file()
 
-            elif opcode == prt.LIST_FILES_OP:
-                self._handle_list_files()
+        elif opcode == prt.LIST_FILES_OP:
+            self._handle_list_files()
 
-            else:
-                stats["requests"]["invalid"] += 1
-                prt.send_status(self.rdt, prt.UNKNOWN_OP_ERR)
+        else:
+            stats["requests"]["invalid"] += 1
+            prt.send_status(self.rdt, prt.UNKNOWN_OP_ERR)
 
-        except ServerClosed:
-            logger.debug(f"[ClientHandler:{self.id}] Halted.")
-            
         logger.debug(f"[ClientHandler:{self.id}] Finished.")
         self.running = False
         return
@@ -134,8 +130,8 @@ class ClientHandler:
 
     def join(self, force=False):
         if force:
+            # TODO: How we can force clients to stop?
             self.running = False
-            self.rdt.stop()
 
         self.th.join()
         logger.debug(f"[ClientHandler:{self.id}] Joined.")
