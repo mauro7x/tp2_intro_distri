@@ -60,7 +60,7 @@ class Socket:
             try:
                 self.skt.settimeout(timeout - (now() - start_time))
             except ValueError:
-                raise SocketTimeout
+                raise SocketTimeout()
 
             recd = self.skt.recvfrom(maxlen)
             self.skt.settimeout(None)
