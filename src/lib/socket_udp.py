@@ -17,7 +17,7 @@ class Socket:
         Inicialization of socket class.
         Wrapper around socket(2).
         """
-        
+
         self.skt = socket(AF_INET, SOCK_DGRAM)
         return
 
@@ -42,6 +42,7 @@ class Socket:
         """
         TODO: docs.
         """
+
         sent = self.skt.sendto(data, addr)
         stats['bytes']['sent'] += sent
         return sent
@@ -54,9 +55,13 @@ class Socket:
         if timeout is None:
             # Recv without timeout
             recd = self.skt.recvfrom(maxlen)
-        else:        
+        else:
             # Recv with timeout
-            self.skt.settimeout(timeout - (now() - start_time))
+            try:
+                self.skt.settimeout(timeout - (now() - start_time))
+            except ValueError:
+                raise SocketTimeout
+
             recd = self.skt.recvfrom(maxlen)
             self.skt.settimeout(None)
 
@@ -74,6 +79,7 @@ class Socket:
         Returns:
         None.
         """
+
         try:
             self.skt.shutdown(SHUT_RDWR)
             self.skt.close()
@@ -85,4 +91,5 @@ class Socket:
         Destructor for releasing resources in case something goes wrong.
         Wrapper around close(2).
         """
+
         self.close()

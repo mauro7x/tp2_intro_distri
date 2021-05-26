@@ -16,7 +16,7 @@ from lib.socket_udp import SocketTimeout
 
 
 class ClientHandler:
-    
+
     id_it = it_count()
 
     def __init__(self, send, addr):
@@ -78,7 +78,7 @@ class ClientHandler:
 
     def _run(self):
         logger.debug(f"[ClientHandler:{self.id}] Started.")
-       
+
         opcode = prt.recv_opcode(self.rdt)
 
         if opcode == prt.UPLOAD_FILE_OP:
@@ -102,39 +102,27 @@ class ClientHandler:
         """
         TODO: docs.
         """
-        
+
         with self.queue_cv:
             self.queue.append(data)
             self.queue_cv.notify()
         return
 
-    def pop(self, length: int, timeout: Optional[int] = None,
-            start_time: Optional[int] = 0):        
+    def pop(self, timeout: Optional[int] = None,
+            start_time: Optional[int] = 0):
         """
         TODO: docs.
         """
-        
-        result = deque()
-        total = 0
 
         with self.queue_cv:
-            while total < length:
-                while not self.queue:
-                    wait_time = timeout - \
-                        (now() - start_time) if timeout is not None else None
-                    if not self.queue_cv.wait(wait_time):
-                        self.queue = result
-                        raise SocketTimeout("Socket timed out")
-                result.append(self.queue.popleft())
-                total += len(result[-1])
+            while not self.queue:
+                wait_time = timeout - \
+                    (now() - start_time) if timeout is not None else None
 
-        result = b''.join(result)
+                if not self.queue_cv.wait(wait_time):
+                    raise SocketTimeout("Socket timed out")
 
-        if total - length:
-            self.queue.appendleft(result[length:])
-            result = result[:length]
-
-        return result
+        return self.queue.popleft()
 
     def join(self, force=False):
         if force:

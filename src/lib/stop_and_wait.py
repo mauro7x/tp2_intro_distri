@@ -1,29 +1,23 @@
 from time import monotonic as now
 
 # Lib
-from lib.rdt_common import DATAGRAM_SIZE, recv_datagram, send_datagram
-from lib.rdt_interface import RDTInterface, RecvCallback, SendCallback
+from lib.rdt_interface import (
+    TYPE_SIZE, ACK_TYPE, DATA_TYPE, SN_SIZE, MAX_PAYLOAD_SIZE, TIMEOUT, RDTInterface, RecvCallback, SendCallback)
 from lib.logger import logger
 from lib.socket_udp import SocketTimeout
 
-# Sizes
-ACK_SIZE = len(b'0')
-assert DATAGRAM_SIZE > ACK_SIZE
-DATA_SIZE = DATAGRAM_SIZE - ACK_SIZE
-
-# Timeouts
-TIMEOUT = 2  # in seconds
-DISCONNECT_TIMEOUT = 5  # in seconds
-
 
 # Aux private funcs
-
 def _split(datagram):
     """
     TODO: docs.
     """
 
-    return datagram[:ACK_SIZE], datagram[ACK_SIZE:]
+    type = datagram[:TYPE_SIZE]
+    ack = datagram[TYPE_SIZE:TYPE_SIZE + SN_SIZE]
+    payload = datagram[TYPE_SIZE + SN_SIZE:]
+
+    return type, ack, payload
 
 
 class StopAndWait(RDTInterface):
@@ -32,10 +26,10 @@ class StopAndWait(RDTInterface):
     """
 
     def __init__(self, send: SendCallback, recv: RecvCallback) -> None:
-        self._send = send
-        self._recv = recv
-        self.seq_num = b'0'
-        self.seq_ack = b'0'
+        self._send_datagram = send
+        self._recv_datagram = recv
+        self.sn_send = b'0'
+        self.sn_recv = b'0'
         self.stopped = False
         return
 
@@ -56,44 +50,51 @@ class StopAndWait(RDTInterface):
 
         return self._get_next(value)
 
-    def send(self, total_data: bytearray):
+    def send(self, data: bytearray):
         """
         TODO: docs.
         """
 
         logger.debug(f'[saw:send] == START SENDING ==')
-        logger.debug(f'[saw:send] Data to send: {total_data}')
+        logger.debug(f'[saw:send] Data to send: {data}')
 
-        for i in range(0, len(total_data), DATA_SIZE):
-            # We divide total data in segments of DATA_SIZE
-            data = total_data[i:(i + DATA_SIZE)]
-            datagram = self.seq_num + data
+        for i in range(0, len(data), MAX_PAYLOAD_SIZE):
+            # We divide total data in segments of max size MAX_PAYLOAD_SIZE
+            payload = data[i:(i + MAX_PAYLOAD_SIZE)]
+            datagram = DATA_TYPE + self.sn_send + payload
 
             logger.debug(f'[saw:send] Sending datagram ({datagram})...')
-            send_datagram(datagram, self._send)
+            self._send_datagram(datagram)
             start = now()
 
             datagram_ackd = False
             while not datagram_ackd:
                 try:
                     # We wait for the ack to arrive
-                    ack, _ = _split(recv_datagram(self._recv, TIMEOUT, start))
-                    datagram_ackd = (ack == self.seq_num)
+                    type, sn, _ = _split(self._recv_datagram(TIMEOUT, start))
+
+                    if type == DATA_TYPE:
+                        self._send_datagram(
+                            ACK_TYPE + self._get_prev(self.sn_recv))
+                        continue
+
+                    datagram_ackd = (sn == self.sn_send)
+
                     if datagram_ackd:
                         logger.debug(
                             f'[saw:send] Good ACK received.')
                     else:
                         logger.debug(
-                            f'[saw:send] Wrong ACK received ({ack}, expected {self.seq_num}).')
+                            f'[saw:send] Wrong ACK received ({sn}, expected {self.sn_send}).')
 
                 except SocketTimeout:
                     # If recv timed out, we re-send the chunk
                     logger.debug(
                         f'[saw:send] Timed out. Re-sending datagram ({datagram})...')
-                    send_datagram(datagram, self._send)
+                    self._send_datagram(datagram)
                     start = now()
 
-            self.seq_num = self._get_next(self.seq_num)
+            self.sn_send = self._get_next(self.sn_send)
 
         logger.debug(f'[saw:send] == FINISH SENDING ==')
         return
@@ -112,26 +113,29 @@ class StopAndWait(RDTInterface):
         total_recd = 0
 
         while total_recd < length:
-            sn, data = _split(recv_datagram(self._recv))
+            type, sn, data = _split(self._recv_datagram())
 
-            # If acks dont't match we re-send the last ack
-            if sn != self.seq_ack:
-                logger.debug(
-                    f'[saw:recv] Wrong SN received ({sn}). Re-sending last ackd SN ({self.seq_ack})...')
-                send_datagram(self._get_prev(self.seq_ack), self._send)
+            if type == ACK_TYPE:
+                logger.debug(f'[saw:recv] ACK arrived, we expected DATA.')
                 continue
 
-            # If acks match, we keep the data and continue
+            # If seq numbers dont't match we re-send the last ack
+            if sn != self.sn_recv:
+                logger.debug(
+                    f'[saw:recv] Wrong SN received ({sn}). Re-sending last ackd SN ({self.sn_recv})...')
+                self._send_datagram(ACK_TYPE + self._get_prev(self.sn_recv))
+                continue
+
+            # If seq numbers match, we keep the data and continue
             logger.debug(
                 f'[saw:recv] Good SN received. Data received: ({data})')
-            left = length - total_recd
-            result.append(data[:left])
+            result.append(data)
             total_recd += len(data)
 
             logger.debug(
-                f'[saw:recv] Sending ack ({self.seq_ack})...')
-            send_datagram(self.seq_ack, self._send)
-            self.seq_ack = self._get_next(self.seq_ack)
+                f'[saw:recv] Sending ack ({self.sn_recv})...')
+            self._send_datagram(ACK_TYPE + self.sn_recv)
+            self.sn_recv = self._get_next(self.sn_recv)
 
         result = b''.join(result)
 

@@ -4,10 +4,8 @@ from threading import Thread
 from lib.socket_udp import Socket
 from lib.client_handler import ClientHandler
 from lib.logger import logger
-from lib.rdt_common import recv_datagram_from
-from lib.rdt_interface import sendto_fixed_addr
+from lib.rdt_interface import sendto_fixed_addr, MAX_DATAGRAM_SIZE
 from lib.stats import stats
-
 
 
 class Receiver:
@@ -32,7 +30,7 @@ class Receiver:
 
     def _run(self):
         while self.receiving:
-            data, addr = recv_datagram_from(self.skt.recvfrom)
+            data, addr = self.skt.recvfrom(MAX_DATAGRAM_SIZE)
 
             if not addr:
                 logger.debug("[Receiver] Stopped.")

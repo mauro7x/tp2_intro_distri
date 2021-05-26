@@ -4,9 +4,23 @@ from typing import Callable, Optional
 # Lib
 from lib.socket_udp import Socket
 
-# Types
-RecvCallback = Callable[[int, Optional[int], Optional[int]], bytearray]
+# Typing
+RecvCallback = Callable[[Optional[int], Optional[int]], bytearray]
 SendCallback = Callable[[bytearray], int]
+
+# Types
+ACK_TYPE = b'a'
+DATA_TYPE = b'd'
+
+# Sizes
+MAX_DATAGRAM_SIZE = 512
+TYPE_SIZE = 1
+SN_SIZE = 1
+MAX_PAYLOAD_SIZE = MAX_DATAGRAM_SIZE - (TYPE_SIZE + SN_SIZE)
+assert MAX_PAYLOAD_SIZE > 0
+
+# Timeouts (in seconds)
+TIMEOUT = 0.2
 
 
 def sendto_fixed_addr(skt: Socket, addr: tuple):
@@ -17,9 +31,9 @@ def sendto_fixed_addr(skt: Socket, addr: tuple):
 
 
 def recvfrom_fixed_addr(skt: Socket):
-    def recv(length: int, timeout: Optional[int] = None,
+    def recv(timeout: Optional[int] = None,
              start_time: int = 0) -> bytearray:
-        return skt.recvfrom(length, timeout, start_time)[0]
+        return skt.recvfrom(MAX_DATAGRAM_SIZE, timeout, start_time)[0]
     return recv
 
 
