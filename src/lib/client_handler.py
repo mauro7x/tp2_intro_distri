@@ -8,6 +8,7 @@ from typing import Optional
 # Lib
 from lib.logger import logger
 from lib.stats import stats
+from lib.formatters import get_time_readable
 from lib.rdt_selection import create_rdt
 import lib.protocol as prt
 
@@ -32,15 +33,22 @@ class ClientHandler:
     def _handle_upload_file(self) -> None:
         stats["requests"]["upload-file"] += 1
         prt.send_status(self.rdt, prt.NO_ERR)
+        start = now()
 
         filename = prt.recv_filename(self.rdt)
+
+        logger.info(
+            f'Uploading file "{filename}" from '
+            f'{self.addr[0]}:{self.addr[1]}...')
 
         with open(filename, 'wb') as f:
             for file_chunk in prt.recv_file(self.rdt):
                 f.write(file_chunk)
 
+        time_elapsed = get_time_readable(now() - start)
         logger.info(
-            f"File {filename} uploaded from {self.addr[0]}:{self.addr[1]}.")
+            f'File "{filename}" uploaded from {self.addr[0]}:{self.addr[1]} '
+            f'(elapsed: {time_elapsed}).')
         stats["files"]["uploads"] += 1
 
     def _handle_download_file(self) -> None:
@@ -49,15 +57,18 @@ class ClientHandler:
 
         filename = prt.recv_filename(self.rdt)
 
+        logger.info(
+            f'File "{filename}" being downloaded from '
+            f'{self.addr[0]}:{self.addr[1]}...')
+
         try:
             with open(filename, 'rb') as f:
                 prt.send_status(self.rdt, prt.NO_ERR)
                 prt.send_file(self.rdt, f)
                 stats["files"]["downloads"] += 1
                 logger.info(
-                    f"File {filename} downloaded from " +
-                    f"{self.addr[0]}:{self.addr[1]}."
-                )
+                    f'File "{filename}" downloaded from '
+                    f'{self.addr[0]}:{self.addr[1]}.')
         except FileNotFoundError:
             prt.send_status(self.rdt, prt.FILE_NOT_FOUND_ERR)
 

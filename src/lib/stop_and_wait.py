@@ -1,8 +1,9 @@
 from time import monotonic as now
 
 # Lib
-from lib.rdt_interface import (
-    TYPE_SIZE, ACK_TYPE, DATA_TYPE, SN_SIZE, MAX_PAYLOAD_SIZE, TIMEOUT, RDTInterface, RecvCallback, SendCallback)
+from lib.rdt_interface import (MAX_LAST_TIMEOUTS, TYPE_SIZE, ACK_TYPE,
+                               DATA_TYPE, SN_SIZE, MAX_PAYLOAD_SIZE, TIMEOUT,
+                               RDTInterface, RecvCallback, SendCallback)
 from lib.logger import logger
 from lib.socket_udp import SocketTimeout
 
@@ -20,6 +21,24 @@ def _split(datagram):
     return type, ack, payload
 
 
+def _get_next(value):
+    """
+    TODO: docs.
+    """
+
+    if value == b'0':
+        return b'1'
+    return b'0'
+
+
+def _get_prev(value):
+    """
+    TODO: docs.
+    """
+
+    return _get_next(value)
+
+
 class StopAndWait(RDTInterface):
     """
     TODO: docs.
@@ -32,23 +51,6 @@ class StopAndWait(RDTInterface):
         self.sn_recv = b'0'
         self.stopped = False
         return
-
-    def _get_next(self, value):
-        """
-        TODO: docs.
-        """
-
-        if value == b'0':
-            return b'1'
-        else:
-            return b'0'
-
-    def _get_prev(self, value):
-        """
-        TODO: docs.
-        """
-
-        return self._get_next(value)
 
     def send(self, data: bytearray):
         """
@@ -63,44 +65,60 @@ class StopAndWait(RDTInterface):
             payload = data[i:(i + MAX_PAYLOAD_SIZE)]
             datagram = DATA_TYPE + self.sn_send + payload
 
+            # We send the datagram
             logger.debug(f'[saw:send] Sending datagram ({datagram})...')
             self._send_datagram(datagram)
             start = now()
             timeouts = 0
-
             datagram_ackd = False
-            while (not datagram_ackd) and (timeouts < 100):
+
+            while (not datagram_ackd) and (timeouts < MAX_LAST_TIMEOUTS):
                 try:
-                    # We wait for the ack to arrive
+                    # We block receiving a datagram...
                     type, sn, _ = _split(self._recv_datagram(TIMEOUT, start))
-
-                    if type == DATA_TYPE:
-                        self._send_datagram(
-                            ACK_TYPE + self._get_prev(self.sn_recv))
-                        continue
-
-                    datagram_ackd = (sn == self.sn_send)
-
-                    if datagram_ackd:
-                        logger.debug(
-                            f'[saw:send] Good ACK received.')
-                    else:
-                        logger.debug(
-                            f'[saw:send] Wrong ACK received ({sn}, expected {self.sn_send}).')
-
                 except SocketTimeout:
-                    # If recv timed out, we re-send the chunk
-                    timeouts += 1
+                    if ((timeouts := timeouts + 1) >= MAX_LAST_TIMEOUTS) and \
+                            (i + MAX_PAYLOAD_SIZE) >= len(data):
+                        # MAX_LAST_TIMEOUTS reached and we are sending
+                        # last piece of data, we assume data arrived
+                        # but its ack was lost.
+                        logger.warn(f'Client request assumed to have been '
+                                    f'fulfilled (timeouts limit has been '
+                                    f'reached while waiting for ACK).')
+                        break
+
+                    # Time out! We re-send the datagram
                     logger.debug(
-                        f'[saw:send] Timed out. Re-sending datagram ({datagram})...')
+                        f'[saw:send] Timed out. Re-sending datagram '
+                        f'({datagram})...')
                     self._send_datagram(datagram)
                     start = now()
+                    continue
 
-            if timeouts == 100:
-                # TODO: identificar si estamos en el ultimo paquete
-                raise SocketTimeout()
+                # Datagram has arrived
+                if type == DATA_TYPE:
+                    # Datagram is data type, so we re-send last sn_recv.
+                    logger.debug(f'[saw:send] DATA received. Re-sending'
+                                 f' last ACK with sn_recv.')
+                    self._send_datagram(
+                        ACK_TYPE + _get_prev(self.sn_recv))
+                    continue
 
-            self.sn_send = self._get_next(self.sn_send)
+                # Datagram is ACK type, we check if it matches our sn_send.
+                if (datagram_ackd := (sn == self.sn_send)):
+                    logger.debug(
+                        f'[saw:send] Good ACK received.')
+                else:
+                    logger.debug(
+                        f'[saw:send] Wrong ACK received ({sn}, '
+                        f'expected {self.sn_send}).')
+
+            # At this point, there are two options:
+            # * Datagram successfully sent,
+            # * If we are sendin the last piece of data, and MAX_LAST_TIMEOUTS
+            #   is reached, we assume data arrived but ack got lost.
+
+            self.sn_send = _get_next(self.sn_send)
 
         logger.debug(f'[saw:send] == FINISH SENDING ==')
         return
@@ -129,7 +147,7 @@ class StopAndWait(RDTInterface):
             if sn != self.sn_recv:
                 logger.debug(
                     f'[saw:recv] Wrong SN received ({sn}, expected {self.sn_recv}). Re-sending last ackd SN ({self.sn_recv})...')
-                self._send_datagram(ACK_TYPE + self._get_prev(self.sn_recv))
+                self._send_datagram(ACK_TYPE + _get_prev(self.sn_recv))
                 continue
 
             # If seq numbers match, we keep the data and continue
@@ -141,7 +159,7 @@ class StopAndWait(RDTInterface):
             logger.debug(
                 f'[saw:recv] Sending ack ({self.sn_recv})...')
             self._send_datagram(ACK_TYPE + self.sn_recv)
-            self.sn_recv = self._get_next(self.sn_recv)
+            self.sn_recv = _get_next(self.sn_recv)
 
         result = b''.join(result)
 

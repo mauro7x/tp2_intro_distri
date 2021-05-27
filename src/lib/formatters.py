@@ -1,3 +1,6 @@
+import time
+
+
 def get_size_readable(size: int, decimals: bool = True) -> str:
     assert size >= 0
 
@@ -15,3 +18,9 @@ def get_size_readable(size: int, decimals: bool = True) -> str:
         return f"{converted:.2f} {unit}"
     else:
         return f"{int(converted)} {unit}"
+
+
+def get_time_readable(seconds: float) -> str:
+    if seconds < 1:
+        return f'00:0{seconds:.4f}'
+    return time.strftime('%M:%S', time.gmtime(seconds))

@@ -21,6 +21,7 @@ assert MAX_PAYLOAD_SIZE > 0
 
 # Timeouts (in seconds)
 TIMEOUT = 0.001
+MAX_LAST_TIMEOUTS = 100
 
 
 def sendto_fixed_addr(skt: Socket, addr: tuple):

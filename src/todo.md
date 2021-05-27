@@ -2,10 +2,10 @@
 
 -   [x] Base architecture.
 -   [ ] Find way to force ClientHandlers to stop.
--   [ ] StopAndWait:
+-   [x] StopAndWait:
     -   [x] Basic protocol.
     -   [x] Test without comcast.
-    -   [ ] Test with comcast.
+    -   [x] Test with comcast.
 -   [ ] GoBackN:
     -   [ ] Basic protocol.
     -   [ ] Test without comcast.
