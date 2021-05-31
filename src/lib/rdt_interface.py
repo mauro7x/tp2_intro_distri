@@ -13,14 +13,14 @@ ACK_TYPE = b'a'
 DATA_TYPE = b'd'
 
 # Sizes
-MAX_DATAGRAM_SIZE = 1024
+MAX_DATAGRAM_SIZE = 2**20  # Máx value set by UDP is 2**16 - 8
 TYPE_SIZE = 1
 SN_SIZE = 1
 MAX_PAYLOAD_SIZE = MAX_DATAGRAM_SIZE - (TYPE_SIZE + SN_SIZE)
 assert MAX_PAYLOAD_SIZE > 0
 
 # Timeouts (in seconds)
-TIMEOUT = 0.001
+TIMEOUT = 1  # Recommended start timeout by RFC 6298
 MAX_LAST_TIMEOUTS = 100
 
 
