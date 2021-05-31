@@ -1,9 +1,9 @@
 from time import monotonic as now
 
 # Lib
-from lib.rdt_interface import (TYPE_SIZE, ACK_TYPE,
-                               DATA_TYPE, SN_SIZE, MAX_PAYLOAD_SIZE,
-                               RDTInterface, RecvCallback, SendCallback)
+from lib.rdt_interface import (TYPE_SIZE, ACK_TYPE, DATA_TYPE, SN_SIZE,
+                               MAX_PAYLOAD_SIZE, SHUT_TIMEOUT, RDTInterface,
+                               RecvCallback, SendCallback)
 from lib.logger import logger
 from lib.rtt_handler import RTTHandler
 from lib.socket_udp import SocketTimeout
@@ -52,6 +52,7 @@ class StopAndWait(RDTInterface):
         self.sn_recv = b'0'
         self.stopped = False
         self.rtt = RTTHandler()
+        self.shut_recd = False
         return
 
     def send(self, data: bytearray):
@@ -157,3 +158,22 @@ class StopAndWait(RDTInterface):
         logger.debug('[saw:recv] == FINISH RECEIVING ==')
 
         return result
+
+    def ensure_close(self):
+        logger.debug('[saw:ensure_close] TIME_WAIT.')
+
+        start = now()
+
+        while True:
+            try:
+                # We block receiving a datagram...
+                datagram_recd = self._recv_datagram(SHUT_TIMEOUT, start)
+                type, sn, _ = _split(datagram_recd)
+            except SocketTimeout:
+                break
+
+            if type == DATA_TYPE:
+                self._send_datagram(ACK_TYPE + sn)
+                start = now()
+
+        logger.debug('[saw:ensure_close] Leaving!')

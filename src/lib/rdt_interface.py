@@ -21,6 +21,7 @@ assert MAX_PAYLOAD_SIZE > 0
 
 # Timeouts (in seconds)
 TIMEOUT = 1  # Recommended start timeout by RFC 6298
+SHUT_TIMEOUT = 30
 
 
 def sendto_fixed_addr(skt: Socket, addr: tuple):
