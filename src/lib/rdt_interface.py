@@ -13,7 +13,7 @@ ACK_TYPE = b'a'
 DATA_TYPE = b'd'
 
 # Sizes
-MAX_DATAGRAM_SIZE = 2**20  # Máx value set by UDP is 2**16 - 8
+MAX_DATAGRAM_SIZE = 2**10  # Máx value set by UDP is 2**16 - 8
 TYPE_SIZE = 1
 SN_SIZE = 1
 MAX_PAYLOAD_SIZE = MAX_DATAGRAM_SIZE - (TYPE_SIZE + SN_SIZE)
