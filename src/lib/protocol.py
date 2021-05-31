@@ -170,8 +170,11 @@ def send_file(rdt: RDTInterface, f, progress: bool = False):
     if progress:
         progress_bar(sent, filesize)
     chunk = f.read(CHUNK_SIZE)
+    last_chunk = False
     while chunk:
-        rdt.send(chunk)
+        if len(chunk) < CHUNK_SIZE:
+            last_chunk = True
+        rdt.send(chunk, last_chunk)
         sent += len(chunk)
         if progress:
             progress_bar(sent, filesize)
@@ -194,20 +197,14 @@ def recv_file(rdt: RDTInterface, progress: bool = False):
     """
     progress &= logger.level < FATAL_LEVEL
 
-    progress = False
-
     filesize = decode_int(rdt.recv(INT_SIZE))
     if filesize < 0:
         pass
-
-    print(f"[PRT] Filesize = {filesize}")
 
     recd = 0
     if progress:
         progress_bar(recd, filesize, True)
     while recd < filesize:
-        print(
-            f"[PRT] recd = {recd}, left = {filesize-recd} min: {min(filesize - recd, CHUNK_SIZE)}")
         file_chunk = rdt.recv(min(filesize - recd, CHUNK_SIZE))
         recd += len(file_chunk)
         if progress:
@@ -235,8 +232,12 @@ def send_list(rdt: RDTInterface, list: list) -> None:
     rdt.send(encode_int(len(bytes)))
     chunks = [bytes[i:i+CHUNK_SIZE] for i in range(0, len(bytes), CHUNK_SIZE)]
 
-    for chunk in chunks:
-        rdt.send(chunk)
+    last_chunk = False
+    for i, chunk in enumerate(chunks):
+        if i == len(chunks) - 1:
+            last_chunk = True
+
+        rdt.send(chunk, last_chunk)
 
 
 def recv_list(rdt: RDTInterface) -> list:
