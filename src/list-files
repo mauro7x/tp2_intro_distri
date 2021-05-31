@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 """
 Sends a request to the specified server in order to receive the available
 files to download from it.

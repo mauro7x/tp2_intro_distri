@@ -194,14 +194,20 @@ def recv_file(rdt: RDTInterface, progress: bool = False):
     """
     progress &= logger.level < FATAL_LEVEL
 
+    progress = False
+
     filesize = decode_int(rdt.recv(INT_SIZE))
     if filesize < 0:
         pass
+
+    print(f"[PRT] Filesize = {filesize}")
 
     recd = 0
     if progress:
         progress_bar(recd, filesize, True)
     while recd < filesize:
+        print(
+            f"[PRT] recd = {recd}, left = {filesize-recd} min: {min(filesize - recd, CHUNK_SIZE)}")
         file_chunk = rdt.recv(min(filesize - recd, CHUNK_SIZE))
         recd += len(file_chunk)
         if progress:

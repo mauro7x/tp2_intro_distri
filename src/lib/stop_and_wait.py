@@ -1,7 +1,7 @@
 from time import monotonic as now
 
 # Lib
-from lib.rdt_interface import (MAX_LAST_TIMEOUTS, TYPE_SIZE, ACK_TYPE,
+from lib.rdt_interface import (TYPE_SIZE, ACK_TYPE,
                                DATA_TYPE, SN_SIZE, MAX_PAYLOAD_SIZE,
                                RDTInterface, RecvCallback, SendCallback)
 from lib.logger import logger
@@ -70,26 +70,15 @@ class StopAndWait(RDTInterface):
             logger.debug(f'[saw:send] Sending datagram ({datagram})...')
             self._send_datagram(datagram)
             start = now()
-            timeouts = 0
             datagram_ackd = False
 
-            while (not datagram_ackd) and (timeouts < MAX_LAST_TIMEOUTS):
+            while not datagram_ackd:
                 try:
                     # We block receiving a datagram...
-                    datagram = self._recv_datagram(
+                    datagram_recd = self._recv_datagram(
                         self.rtt.get_timeout(), start)
-                    type, sn, _ = _split(datagram)
+                    type, sn, _ = _split(datagram_recd)
                 except SocketTimeout:
-                    if ((timeouts := timeouts + 1) >= MAX_LAST_TIMEOUTS) and \
-                            (i + MAX_PAYLOAD_SIZE) >= len(data):
-                        # MAX_LAST_TIMEOUTS reached and we are sending
-                        # last piece of data, we assume data arrived
-                        # but its ack was lost.
-                        logger.warn('Message request assumed to have been '
-                                    'fulfilled (timeouts limit has been '
-                                    'reached while waiting for ACK).')
-                        break
-
                     # Time out! We re-send the datagram
                     logger.debug(
                         f'[saw:send] Timed out. Re-sending datagram '
@@ -117,11 +106,6 @@ class StopAndWait(RDTInterface):
                 else:
                     logger.debug(f'[saw:send] Wrong ACK received ({sn}, '
                                  f'expected {self.sn_send}).')
-
-            # At this point, there are two options:
-            # * Datagram successfully sent,
-            # * If we are sending the last piece of data, and MAX_LAST_TIMEOUTS
-            #   is reached, we assume data arrived but ack got lost.
 
             self.sn_send = _get_next(self.sn_send)
 
