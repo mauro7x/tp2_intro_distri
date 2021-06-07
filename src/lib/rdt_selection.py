@@ -7,6 +7,6 @@ USE_GBN = True
 
 def create_rdt(send, recv):
     if USE_GBN:
-        return GoBackN(send, recv, window_size=10)
+        return GoBackN(send, recv)
     else:
         return StopAndWait(send, recv)

@@ -50,6 +50,6 @@ if __name__ == "__main__":
     args = parse_args_list()
     try:
         main(args)
-    except BaseException as e:
-        logger.fatal(e)
+    except BaseException:
+        logger.exception("Unexpected error during execution:")
         exit(1)

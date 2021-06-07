@@ -1,7 +1,7 @@
 from time import monotonic as now
 
 # Lib
-from lib.rdt_interface import (TYPE_SIZE, ACK_TYPE, DATA_TYPE, SN_SIZE,
+from lib.rdt_interface import (ACK_TYPE, DATA_TYPE,
                                MAX_PAYLOAD_SIZE, MAX_LAST_TIMEOUTS,
                                RDTInterface, RecvCallback, SendCallback, split)
 from lib.logger import logger
@@ -70,7 +70,7 @@ class StopAndWait(RDTInterface):
                     # We block receiving a datagram...
                     datagram_recd = self._recv_datagram(
                         self.rtt.get_timeout(), start)
-                    type, sn, _ = _split(datagram_recd)
+                    type, sn, _ = split(datagram_recd)
                 except SocketTimeout:
                     if last and \
                             ((timeouts := timeouts + 1) >= MAX_LAST_TIMEOUTS):
@@ -128,7 +128,7 @@ class StopAndWait(RDTInterface):
         total_recd = 0
 
         while total_recd < length:
-            type, sn, data = _split(self._recv_datagram())
+            type, sn, data = split(self._recv_datagram())
 
             if type == ACK_TYPE:
                 logger.debug('[s&w:recv] ACK arrived, we expected DATA.')
