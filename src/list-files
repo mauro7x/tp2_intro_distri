@@ -10,7 +10,7 @@ from lib.rdt_interface import recvfrom_fixed_addr, sendto_fixed_addr
 from lib.rdt_selection import create_rdt
 from lib.socket_udp import Socket
 from lib.logger import logger
-from lib.formatters import get_size_readable
+from lib.misc import get_size_readable
 import lib.protocol as prt
 
 
@@ -21,10 +21,7 @@ def main(args):
     addr = (args.ADDR, args.PORT)
     rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 
-    prt.send_opcode(rdt, prt.LIST_FILES_OP)
-    s = prt.recv_status(rdt)
-    if s:
-        raise RuntimeError(prt.get_error_msg(s))
+    prt.listfiles_request(rdt)
 
     files_list = prt.recv_list(rdt)
 
@@ -54,6 +51,5 @@ if __name__ == "__main__":
     try:
         main(args)
     except BaseException as e:
-        raise e
         logger.fatal(e)
         exit(1)

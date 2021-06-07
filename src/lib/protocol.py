@@ -1,4 +1,5 @@
 from os import SEEK_END
+from typing import Optional
 
 # Lib
 from lib.progress import progress_bar
@@ -11,12 +12,6 @@ from lib.rdt_interface import RDTInterface
 # config
 INT_ENCODING = 'big'
 
-# sizes
-OPCODE_SIZE = 1
-STATUS_SIZE = 1
-INT_SIZE = 8
-CHUNK_SIZE = 2**20
-
 # opcodes
 UPLOAD_FILE_OP = 0
 DOWNLOAD_FILE_OP = 1
@@ -27,8 +22,20 @@ NO_ERR = 0
 UNKNOWN_OP_ERR = 1
 FILE_NOT_FOUND_ERR = 2
 
+# sizes
+OPCODE_SIZE = 1
+STATUS_SIZE = 1
+INT_SIZE = 8
+CHUNK_SIZE = 2**20
+MAX_STR_SIZE = 2**9  # 512
+REQUEST_MSG_SIZE = OPCODE_SIZE + INT_SIZE + MAX_STR_SIZE
+
 # -----------------------------------------------------------------------------
 # encoders/decoders
+
+
+def encode_short(i: int) -> bytearray:
+    return i.to_bytes(1, INT_ENCODING)
 
 
 def encode_int(i: int) -> bytearray:
@@ -57,93 +64,135 @@ def decode_int(bytes: bytearray) -> int:
     """
     return int.from_bytes(bytes, INT_ENCODING)
 
+
+def encode_filename(str: str) -> bytearray:
+    """
+    Safe encoding for strings (given the maximum size is MAX_STR_SIZE)
+    """
+    return str.encode()[:MAX_STR_SIZE-1] + b'\0'
+
+
+def decode_filename(bytes: bytearray) -> str:
+    str = bytes.decode()
+    return str[:str.find('\0')]
+
+
+def add_padding(bytes: bytearray, size: int) -> bytearray:
+    return bytes + b'0'*(size - len(bytes))
+
+
 # -----------------------------------------------------------------------------
 # wrappers
 
+# Requests
 
-def send_status(rdt: RDTInterface, status: int) -> None:
+
+def download_request(rdt: RDTInterface, filename: str) -> int:
     """
-    Send the opcode of status in binary format.
+    Send and validate a download request to the server.
 
     Parameters:
-    rdt(RDTInterface): .
-    status(int): Opcode of status.
+    rdt(RDTInterface): A reliable data transfer object.
+    filename(str): namefile requested.
+
+    Returns:
+    filesize(int): size of the file to be downloaded.
+    """
+    message = encode_short(DOWNLOAD_FILE_OP) + encode_filename(filename)
+    rdt.send(add_padding(message, REQUEST_MSG_SIZE))
+
+    response = rdt.recv(STATUS_SIZE + INT_SIZE)
+    status = decode_int(response[:STATUS_SIZE])
+    if status > 0:
+        raise RuntimeError(get_error_msg(status))
+
+    filesize = decode_int(response[STATUS_SIZE:])
+    return filesize
+
+
+def download_response(rdt: RDTInterface, filesize: int) -> None:
+    """
+    Send file availability and filesize to a client.
+    """
+    message = encode_short(NO_ERR) + encode_int(filesize)
+    rdt.send(message)
+    return
+
+
+def upload_request(rdt: RDTInterface, filename: str, filesize: int) -> None:
+    """
+    Send an upload request (with file information) to the server
+    and validate the response.
+
+    Parameters:
+    rdt(RDTInterface): A reliable data transfer object.
+    filename(str): namefile requested.
+    filesize(int): size of the file to be uploaded.
 
     Returns:
     None
     """
-    rdt.send(status.to_bytes(STATUS_SIZE, INT_ENCODING))
+    message = encode_short(UPLOAD_FILE_OP) + \
+        encode_int(filesize) + encode_filename(filename)
+    rdt.send(add_padding(message, REQUEST_MSG_SIZE))
+
+    status = decode_int(rdt.recv(STATUS_SIZE))
+    if status > 0:
+        raise RuntimeError(get_error_msg(status))
+    return
 
 
-def recv_status(rdt: RDTInterface) -> int:
+def upload_response(rdt: RDTInterface) -> None:
     """
-    Receive the status opcode and return it with integer value.
+    All-good response for an upload request.
+    """
+    rdt.send(encode_short(NO_ERR))
+    return
+
+
+def listfiles_request(rdt: RDTInterface) -> None:
+    """
+    Send the list files request to the server.
 
     Parameters:
-    rdt(RDTInterface): .
-
-    Returns:
-    opcode(int): Opcode of status.
-    """
-    return int.from_bytes(rdt.recv(STATUS_SIZE), INT_ENCODING)
-
-
-def send_opcode(rdt: RDTInterface, opcode: int) -> None:
-    """
-    Send the command opcode in binary format.
-
-    Parameters:
-    rdt(RDTInterface): .
-    status(int): Command opcode
-
-    Returns:
-    None
-    """
-    rdt.send(opcode.to_bytes(OPCODE_SIZE, INT_ENCODING))
-
-
-def recv_opcode(rdt: RDTInterface) -> int:
-    """
-    Receives the command opcode and return it with integer value.
-
-    Parameters:
-    rdt(RDTInterface): .
-
-    Returns:
-    opcode(int): Command opcode.
-    """
-    return int.from_bytes(rdt.recv(OPCODE_SIZE), INT_ENCODING)
-
-
-def send_filename(rdt: RDTInterface, filename: str) -> None:
-    """
-    Send the filename with binary format.
-
-    Parameters:
-    rdt(RDTInterface): .
-    filename(str): the name of file, must be open with binary ('b') mode.
+    rdt(RDTInterface)
 
     Returns:
     None
     """
-    bytes = filename.encode()
-    rdt.send(encode_int(len(bytes)))
-    rdt.send(bytes)
+    rdt.send(add_padding(encode_short(LIST_FILES_OP), REQUEST_MSG_SIZE))
+    return
 
 
-def recv_filename(rdt: RDTInterface) -> str:
+def recv_request(rdt: RDTInterface) -> Optional[dict]:
     """
-    Receives the filename and return it with string type.
+    Receive the operation code and parameters.
 
     Parameters:
     rdt(RDTInterface): .
 
     Returns:
-    filename(str): The name of file.
+    op_code(int): Request op code.
+    args(dict): In case of a known request, return a dictionary with necessary
+    arguments. (Unknown requests will return the plain bytearray)
     """
-    filename_size = decode_int(rdt.recv(INT_SIZE))
-    filename = rdt.recv(filename_size).decode()
-    return filename
+    request = rdt.recv(REQUEST_MSG_SIZE)
+    op_code = decode_int(request[:OPCODE_SIZE])
+
+    args = {}
+    if op_code == DOWNLOAD_FILE_OP:
+        args["filename"] = decode_filename(request[OPCODE_SIZE:])
+    elif op_code == UPLOAD_FILE_OP:
+        args["filesize"] = decode_int(
+            request[OPCODE_SIZE:OPCODE_SIZE+INT_SIZE])
+        args["filename"] = decode_filename(
+            request[OPCODE_SIZE + INT_SIZE:])
+    elif op_code == LIST_FILES_OP:
+        pass
+    else:
+        return op_code, request[OPCODE_SIZE:]
+
+    return op_code, args
 
 
 def send_file(rdt: RDTInterface, f, progress: bool = False):
@@ -160,14 +209,11 @@ def send_file(rdt: RDTInterface, f, progress: bool = False):
     """
     progress &= logger.level < FATAL_LEVEL
 
-    f.seek(0, SEEK_END)
-    filesize = f.tell()
-    f.seek(0)
-
-    rdt.send(encode_int(filesize))
-
     sent = 0
     if progress:
+        f.seek(0, SEEK_END)
+        filesize = f.tell()
+        f.seek(0)
         progress_bar(sent, filesize)
     chunk = f.read(CHUNK_SIZE)
     last_chunk = False
@@ -184,7 +230,7 @@ def send_file(rdt: RDTInterface, f, progress: bool = False):
         print()
 
 
-def recv_file(rdt: RDTInterface, progress: bool = False):
+def recv_file(rdt: RDTInterface, filesize: int, progress: bool = False):
     """
     Create an iterator to recive a file.
 
@@ -196,10 +242,6 @@ def recv_file(rdt: RDTInterface, progress: bool = False):
     file_chunk(bytearray): A file chunk in binary format.
     """
     progress &= logger.level < FATAL_LEVEL
-
-    filesize = decode_int(rdt.recv(INT_SIZE))
-    if filesize < 0:
-        pass
 
     recd = 0
     if progress:
@@ -229,7 +271,7 @@ def send_list(rdt: RDTInterface, list: list) -> None:
     """
     bytes = ('\n'.join(map(str, list))).encode()
 
-    rdt.send(encode_int(len(bytes)))
+    rdt.send(encode_short(NO_ERR) + encode_int(len(bytes)))
     chunks = [bytes[i:i+CHUNK_SIZE] for i in range(0, len(bytes), CHUNK_SIZE)]
 
     last_chunk = False
@@ -266,6 +308,16 @@ def recv_list(rdt: RDTInterface) -> list:
 
 # -----------------------------------------------------------------------------
 # error msgs
+
+
+def send_file_not_found(rdt: RDTInterface) -> None:
+    rdt.send(add_padding(encode_short(FILE_NOT_FOUND_ERR), CHUNK_SIZE))
+    return
+
+
+def send_unknown_error(rdt: RDTInterface) -> None:
+    rdt.send(add_padding(encode_short(UNKNOWN_OP_ERR), CHUNK_SIZE))
+    return
 
 
 def get_error_msg(err_code: int) -> str:

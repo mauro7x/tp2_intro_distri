@@ -2,7 +2,7 @@
 from sys import stdout
 
 # Lib
-from lib.formatters import get_size_readable
+from lib.misc import get_size_readable
 
 
 def progress_bar(current, total, inverted=False, bar_length=20):
