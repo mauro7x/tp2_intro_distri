@@ -13,7 +13,7 @@ ACK_TYPE = b'a'
 DATA_TYPE = b'd'
 
 # Sizes
-MAX_DATAGRAM_SIZE = 2**15  # Máx value set by UDP is 2**16 - 8
+MAX_DATAGRAM_SIZE = 2**4  # Máx value set by UDP is 2**16 - 8
 TYPE_SIZE = 1
 SN_SIZE = 1
 MAX_PAYLOAD_SIZE = MAX_DATAGRAM_SIZE - (TYPE_SIZE + SN_SIZE)
@@ -22,6 +22,18 @@ assert MAX_PAYLOAD_SIZE > 0
 # Timeouts (in seconds)
 TIMEOUT = 1  # Recommended start timeout by RFC 6298
 MAX_LAST_TIMEOUTS = 10
+
+
+def _split(datagram):
+    """
+    TODO: docs.
+    """
+
+    type = datagram[:TYPE_SIZE]
+    ack = datagram[TYPE_SIZE:TYPE_SIZE + SN_SIZE]
+    payload = datagram[TYPE_SIZE + SN_SIZE:]
+
+    return type, ack, payload
 
 
 def sendto_fixed_addr(skt: Socket, addr: tuple):

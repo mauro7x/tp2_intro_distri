@@ -43,5 +43,6 @@ if __name__ == "__main__":
     try:
         main(args)
     except BaseException as e:
+        raise e
         logger.fatal(e)
         exit(1)

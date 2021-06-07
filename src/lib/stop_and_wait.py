@@ -3,23 +3,13 @@ from time import monotonic as now
 # Lib
 from lib.rdt_interface import (TYPE_SIZE, ACK_TYPE, DATA_TYPE, SN_SIZE,
                                MAX_PAYLOAD_SIZE, MAX_LAST_TIMEOUTS,
-                               RDTInterface, RecvCallback, SendCallback)
+                               RDTInterface, RecvCallback, SendCallback, split)
 from lib.logger import logger
 from lib.rtt_handler import RTTHandler
 from lib.socket_udp import SocketTimeout
 
 
 # Aux private funcs
-def _split(datagram):
-    """
-    TODO: docs.
-    """
-
-    type = datagram[:TYPE_SIZE]
-    ack = datagram[TYPE_SIZE:TYPE_SIZE + SN_SIZE]
-    payload = datagram[TYPE_SIZE + SN_SIZE:]
-
-    return type, ack, payload
 
 
 def _get_next(value):
