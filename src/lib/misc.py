@@ -1,4 +1,5 @@
 import time
+from io import SEEK_END
 
 
 def get_size_readable(size: int, decimals: bool = True) -> str:
@@ -24,3 +25,11 @@ def get_time_readable(seconds: float) -> str:
     if seconds < 1:
         return f'00:0{seconds:.4f}'
     return time.strftime('%M:%S', time.gmtime(seconds))
+
+
+def filesize(filename: str) -> int:
+    f = open(filename)
+    f.seek(0, SEEK_END)
+    size = f.tell()
+    f.close()
+    return size

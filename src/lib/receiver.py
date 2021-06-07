@@ -18,15 +18,19 @@ class Receiver:
         self.th.start()
 
     def _demux(self, addr, data):
+        """
+        TODO: docs
+        """
         if addr not in self.clients:
             self.clients[addr] = ClientHandler(
                 sendto_fixed_addr(self.skt, addr), addr)
             logger.debug(
-                f"{addr[0]}:{addr[1]} request assigned to ClientHandler:"
-                f"{self.clients[addr].id}.")
+                f"[Recvr] {addr[0]}:{addr[1]} request assigned to "
+                f"ClientHandler:{self.clients[addr].id}.")
             stats['requests']['total'] += 1
 
         self.clients[addr].push(data)
+        return
 
     def _run(self):
         while self.receiving:

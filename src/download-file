@@ -54,20 +54,13 @@ def main(args):
     addr = (args.ADDR, args.PORT)
     rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 
-    prt.send_opcode(rdt, prt.DOWNLOAD_FILE_OP)
-    s = prt.recv_status(rdt)
-    if s:
-        raise RuntimeError(prt.get_error_msg(s))
-
-    prt.send_filename(rdt, args.FILENAME)
-    s = prt.recv_status(rdt)
-    if s:
-        raise RuntimeError(prt.get_error_msg(s))
+    filesize = prt.download_request(rdt, args.FILENAME)
+    # Check for enough available space?
 
     logger.info("Downloading file...")
 
     with open(filepath, 'wb') as f:
-        for file_chunk in prt.recv_file(rdt, True):
+        for file_chunk in prt.recv_file(rdt, filesize, True):
             f.write(file_chunk)
 
     logger.info("File downloaded.")

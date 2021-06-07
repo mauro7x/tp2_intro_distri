@@ -1,7 +1,7 @@
 from datetime import datetime
 
 # Lib
-from lib.formatters import get_size_readable
+from lib.misc import get_size_readable
 
 stats = {
     "requests": {

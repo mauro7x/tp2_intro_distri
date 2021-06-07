@@ -7,8 +7,9 @@ from typing import Optional
 
 # Lib
 from lib.logger import logger
+from lib.misc import filesize
 from lib.stats import stats
-from lib.formatters import get_time_readable
+from lib.misc import get_size_readable, get_time_readable
 from lib.rdt_selection import create_rdt
 import lib.protocol as prt
 
@@ -30,80 +31,93 @@ class ClientHandler:
         self.th.start()
         self.running = True
 
-    def _handle_upload_file(self) -> None:
-        stats["requests"]["upload-file"] += 1
-        prt.send_status(self.rdt, prt.NO_ERR)
+    def _handle_download_file(self, args: dict) -> None:
+        stats["requests"]["download-file"] += 1
+        filename = args['filename']
+
+        try:
+            size = filesize(filename)
+            prt.download_response(self.rdt, filesize(filename))
+        except FileNotFoundError:
+            prt.send_file_not_found(self.rdt)
+
+        logger.info(
+            f'File "{filename}" being downloaded from '
+            f'{self.addr[0]}:{self.addr[1]}...')
+
         start = now()
 
-        filename = prt.recv_filename(self.rdt)
+        with open(filename, 'rb') as f:
+            prt.send_file(self.rdt, f)
+
+        stats["files"]["downloads"] += 1
+        elapsed = now() - start
+        logger.info(
+            f'File "{filename}" downloaded from {self.addr[0]}:{self.addr[1]}'
+            f' (elapsed: {get_time_readable(elapsed)}, avg transf speed: '
+            f'{get_size_readable(size/elapsed)}/s).')
+
+    def _handle_upload_file(self, args) -> None:
+        stats["requests"]["upload-file"] += 1
+        prt.upload_response(self.rdt)
+        start = now()
+
+        filename: str = args['filename']
+        filesize: int = args['filesize']
 
         logger.info(
             f'Uploading file "{filename}" from '
             f'{self.addr[0]}:{self.addr[1]}...')
 
         with open(filename, 'wb') as f:
-            for file_chunk in prt.recv_file(self.rdt):
+            for file_chunk in prt.recv_file(self.rdt, filesize):
                 f.write(file_chunk)
 
-        time_elapsed = get_time_readable(now() - start)
+        time_elapsed = (now() - start)
         logger.info(
             f'File "{filename}" uploaded from {self.addr[0]}:{self.addr[1]} '
-            f'(elapsed: {time_elapsed}).')
+            f'(elapsed: {get_time_readable(time_elapsed)}, avg transf speed: '
+            f'{get_size_readable(filesize/time_elapsed)}/s).')
         stats["files"]["uploads"] += 1
 
-    def _handle_download_file(self) -> None:
-        stats["requests"]["download-file"] += 1
-        prt.send_status(self.rdt, prt.NO_ERR)
-
-        filename = prt.recv_filename(self.rdt)
-
-        logger.info(
-            f'File "{filename}" being downloaded from '
-            f'{self.addr[0]}:{self.addr[1]}...')
-
-        try:
-            with open(filename, 'rb') as f:
-                prt.send_status(self.rdt, prt.NO_ERR)
-                prt.send_file(self.rdt, f)
-                stats["files"]["downloads"] += 1
-                logger.info(
-                    f'File "{filename}" downloaded from '
-                    f'{self.addr[0]}:{self.addr[1]}.')
-        except FileNotFoundError:
-            prt.send_status(self.rdt, prt.FILE_NOT_FOUND_ERR)
-
-    def _handle_list_files(self) -> None:
+    def _handle_list_files(self, args: dict) -> None:
         stats["requests"]["list-files"] += 1
-        prt.send_status(self.rdt, prt.NO_ERR)
 
         files_list = []
         for file in listdir():
             if path.isdir(file):
+                # skipping subdirectories
                 continue
             files_list.append((file, path.getsize(file), path.getmtime(file)))
 
         prt.send_list(self.rdt, files_list)
 
         logger.info(
-            f"Files list downloaded from {self.addr[0]}:{self.addr[1]}.")
+            f"Files list sent to {self.addr[0]}:{self.addr[1]}.")
 
     def _run(self):
         logger.debug(f"[ClientHandler:{self.id}] Started.")
 
-        opcode = prt.recv_opcode(self.rdt)
+        opcode, args = prt.recv_request(self.rdt)
 
-        if opcode == prt.UPLOAD_FILE_OP:
-            self._handle_upload_file()
+        if opcode == prt.DOWNLOAD_FILE_OP:
+            logger.debug(
+                f"[ClientHandler:{self.id}] Handling download-file request.")
+            self._handle_download_file(args)
 
-        elif opcode == prt.DOWNLOAD_FILE_OP:
-            self._handle_download_file()
+        elif opcode == prt.UPLOAD_FILE_OP:
+            logger.debug(
+                f"[ClientHandler:{self.id}] Handling upload-file request.")
+            self._handle_upload_file(args)
 
         elif opcode == prt.LIST_FILES_OP:
-            self._handle_list_files()
+            logger.debug(
+                f"[ClientHandler:{self.id}] Handling list-files request.")
+            self._handle_list_files(args)
 
         else:
             stats["requests"]["invalid"] += 1
-            prt.send_status(self.rdt, prt.UNKNOWN_OP_ERR)
+            prt.send_unknown_error(self.rdt)
 
         logger.debug(f"[ClientHandler:{self.id}] Finished.")
         self.running = False
@@ -113,7 +127,6 @@ class ClientHandler:
         """
         TODO: docs.
         """
-
         with self.queue_cv:
             self.queue.append(data)
             self.queue_cv.notify()
@@ -124,7 +137,6 @@ class ClientHandler:
         """
         TODO: docs.
         """
-
         with self.queue_cv:
             while not self.queue:
                 wait_time = timeout - \
