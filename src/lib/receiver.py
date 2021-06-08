@@ -25,7 +25,7 @@ class Receiver:
             self.clients[addr] = ClientHandler(
                 sendto_fixed_addr(self.skt, addr), addr)
             logger.debug(
-                f"[Recvr] {addr[0]}:{addr[1]} request assigned to "
+                f"[Receiver] {addr[0]}:{addr[1]} request assigned to "
                 f"ClientHandler:{self.clients[addr].id}.")
             stats['requests']['total'] += 1
 

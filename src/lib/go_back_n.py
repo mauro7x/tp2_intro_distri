@@ -25,6 +25,7 @@ class GoBackN(RDTInterface):
         self.n = window_size
         self._send_datagram = _send
         self._recv_datagram = _recv
+        self.dict_transform = {}
         self.sn_send = 0
         self.sn_recv = 0
         self.rtt = RTTHandler()
@@ -46,13 +47,14 @@ class GoBackN(RDTInterface):
         return (sn + 1) % (2 * self.n)
 
     def _calc_transform(self, base):
-        first_pn = base - self.n
+        first_pn = (base - self.n) if (base - self.n) >= 0 else 0
         last_pn = base + self.n
         self.dict_transform = {(i + self.sn_send) % (2*self.n): i
                                for i in range(first_pn, last_pn)}
-        logger.debug("TRANSFORMATION IS: \n")
-        for i, j in self.dict_transform.items():
-            print(i, '-->', j)
+        # logger.debug("TRANSFORMATION IS: \n")
+        # for i, j in self.dict_transform.items():
+        #     print(i, '-->', j
+        return
 
     def _get_pn(self, sn):
         # Funciona sin desfase, se puede buscar otra forma
@@ -74,10 +76,17 @@ class GoBackN(RDTInterface):
         self._calc_transform(base)
         datagrams = self._create_datagrams(data)
 
+        logger.debug(f'[gbn:send] Datagram count: {len(datagrams)}')
+
         while base < len(datagrams):
 
             start = now()
-            for i in range(base, min(base + self.n, len(datagrams))):
+            wnd_end = min(base + self.n, len(datagrams))
+            logger.debug(
+                f'[gbn:send] Sending from {base} to'
+                f' {wnd_end} with sns: '
+                f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
+            for i in range(base, wnd_end):
                 self._send_datagram(datagrams[i])
 
             while base < len(datagrams):
@@ -89,7 +98,8 @@ class GoBackN(RDTInterface):
                 except SocketTimeout:
                     if last and timeouts >= MAX_LAST_TIMEOUTS:
                         # Assume everything was sent
-                        base = len(datagrams)
+                        base = len(datagrams) + 1
+                    logger.debug('[gbn:send] Timed out. Resending...')
                     break
 
                 if type != ACK_TYPE:
@@ -99,6 +109,7 @@ class GoBackN(RDTInterface):
                     continue
 
                 # got ack
+                logger.debug(f'[gbn:send] Got ack sn: {sn}')
                 pn = self._get_pn(sn)
 
                 if pn < base:
@@ -107,14 +118,18 @@ class GoBackN(RDTInterface):
                 # enviamos lo nuevo
                 start = now()
                 new_count = pn - base + 1
-                for i in range(base + self.n - new_count,
-                               min(base + self.n, len(datagrams))):
+                wnd_end = min(base + self.n, len(datagrams))
+                logger.debug(
+                    f'[gbn:send] Sending new data {base + self.n - new_count} '
+                    f'to {wnd_end}'
+                    f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
+                for i in range(base + self.n - new_count, wnd_end):
                     self._send_datagram(datagrams[i])
 
                 base = pn + 1
                 self._calc_transform(base)
 
-        self.sn_send = self._get_sn(base + 1)
+        self.sn_send = self._get_sn(base)
 
         logger.debug('[gbn:send] == FINISH SENDING ==')
         return
