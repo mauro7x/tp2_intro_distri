@@ -1,77 +1,20 @@
 from time import monotonic as now
 
 # Lib
-from lib.rdt_interface import (
-    ACK_TYPE, DATA_TYPE, MAX_LAST_TIMEOUTS, MAX_PAYLOAD_SIZE,
-    RDTInterface, RecvCallback, SN_SIZE, SendCallback, split)
-from lib.rtt_handler import RTTHandler
+from lib.rdt_interface import (ACK_TYPE, MAX_LAST_TIMEOUTS, split)
+from lib.go_back_n_base import GoBackNBase, encode_sn, decode_sn
 from lib.logger import logger
 from lib.socket_udp import SocketTimeout
 
 
-def _encode_sn(sn: int) -> bytearray:
-    return sn.to_bytes(SN_SIZE, "big")
-
-
-def _decode_sn(sn: bytearray) -> int:
-    return int.from_bytes(sn, "big")
-
-
-class GoBackN(RDTInterface):
-
-    def __init__(self, _send: SendCallback, _recv: RecvCallback,
-                 window_size: int = 4) -> None:
-        assert window_size <= (2**(8 * SN_SIZE))//2
-        self.n = window_size
-        self._send_datagram = _send
-        self._recv_datagram = _recv
-        self.dict_transform = {}
-        self.sn_send = 0
-        self.sn_recv = 0
-        self.rtt = RTTHandler()
-        return
-
-    def _create_datagrams(self, data: bytearray) -> 'list[bytearray]':
-        # [DATA, SN, payload]
-        return [DATA_TYPE + _encode_sn(self._get_sn(int(i/MAX_PAYLOAD_SIZE))) +
-                data[i:i+MAX_PAYLOAD_SIZE]
-                for i in range(0, len(data), MAX_PAYLOAD_SIZE)]
-
-    def _get_sn(self, pn):
-        return (pn + self.sn_send) % (2 * self.n)
-
-    def _get_prev(self, sn):
-        return (sn - 1) % (2 * self.n)
-
-    def _get_next(self, sn):
-        return (sn + 1) % (2 * self.n)
-
-    def _calc_transform(self, base):
-        first_pn = (base - self.n)
-        last_pn = base + self.n
-        self.dict_transform = {(i + self.sn_send) % (2*self.n): i
-                               for i in range(first_pn, last_pn)}
-        # logger.debug("TRANSFORMATION IS: \n")
-        # for i, j in self.dict_transform.items():
-        #     print(i, '-->', j)
-        return
-
-    def _get_pn(self, sn):
-        # Funciona sin desfase, se puede buscar otra forma
-        # pn = sn + ((base + self.n - 1 - sn) // (2 * self.n))\
-        #     * (2 * self.n)
-        return self.dict_transform[sn]
+class GoBackNV1(GoBackNBase):
 
     def send(self, data: bytearray, last=False):
         logger.debug('[gbn:send] == START SENDING ==')
         logger.debug(f'[gbn:send] Data to send: {data[:10]} - '
                      f'len {len(data)} -')
 
-        #    base      window_end
-        # -- |------> n| ---
-        # 01 |234567...
         timeouts = 0
-
         base = 0
         self._calc_transform(base)
         datagrams = self._create_datagrams(data)
@@ -94,7 +37,7 @@ class GoBackN(RDTInterface):
                     datagram_recd = self._recv_datagram(
                         self.rtt.get_timeout(), start)
                     type, sn, data = split(datagram_recd)
-                    sn = _decode_sn(sn)
+                    sn = decode_sn(sn)
                 except SocketTimeout:
                     self.rtt.timed_out()
                     timeouts += 1
@@ -106,7 +49,7 @@ class GoBackN(RDTInterface):
 
                 if type != ACK_TYPE:
                     datagram = ACK_TYPE + \
-                        _encode_sn(self._get_prev(self.sn_recv))
+                        encode_sn(self._get_prev(self.sn_recv))
                     self._send_datagram(datagram)
                     continue
 
@@ -120,6 +63,7 @@ class GoBackN(RDTInterface):
 
                 self.rtt.add_sample(now() - start)
                 # enviamos lo nuevo
+                timeouts = 0
                 start = now()
                 new_count = pn - base + 1
                 wnd_end = min(base + self.n, len(datagrams))
@@ -142,14 +86,14 @@ class GoBackN(RDTInterface):
         logger.debug('[gbn:recv] == START RECEIVING ==')
         logger.debug(f'[gbn:recv] Length: {length}')
 
-        # TODO: Add global timer so it doesn't block 4ever?
+        # Nice to Have: Add global timer so it doesn't block forever.
 
         result = []
         total_recd = 0
 
         while total_recd < length:
             type, sn, data = split(self._recv_datagram())
-            sn = _decode_sn(sn)
+            sn = decode_sn(sn)
 
             if type == ACK_TYPE:
                 logger.debug('[gbn:recv] ACK arrived, we expected DATA.')
@@ -162,7 +106,7 @@ class GoBackN(RDTInterface):
                     f'expected {self.sn_recv}). Re-sending '
                     f'last ackd SN ({self.sn_recv})...')
                 self._send_datagram(
-                    ACK_TYPE + _encode_sn(self._get_prev(self.sn_recv)))
+                    ACK_TYPE + encode_sn(self._get_prev(self.sn_recv)))
                 continue
 
             # If seq numbers match, we keep the data and continue
@@ -174,7 +118,7 @@ class GoBackN(RDTInterface):
 
             logger.debug(
                 f'[gbn:recv] Sending ack ({self.sn_recv})...')
-            self._send_datagram(ACK_TYPE + _encode_sn(self.sn_recv))
+            self._send_datagram(ACK_TYPE + encode_sn(self.sn_recv))
             self.sn_recv = self._get_next(self.sn_recv)
 
         result = b''.join(result)
