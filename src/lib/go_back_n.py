@@ -20,7 +20,7 @@ def _decode_sn(sn: bytearray) -> int:
 class GoBackN(RDTInterface):
 
     def __init__(self, _send: SendCallback, _recv: RecvCallback,
-                 window_size: int = 2) -> None:
+                 window_size: int = 4) -> None:
         assert window_size <= (2**(8 * SN_SIZE))//2
         self.n = window_size
         self._send_datagram = _send
@@ -47,13 +47,13 @@ class GoBackN(RDTInterface):
         return (sn + 1) % (2 * self.n)
 
     def _calc_transform(self, base):
-        first_pn = (base - self.n) if (base - self.n) >= 0 else 0
+        first_pn = (base - self.n)
         last_pn = base + self.n
         self.dict_transform = {(i + self.sn_send) % (2*self.n): i
                                for i in range(first_pn, last_pn)}
         # logger.debug("TRANSFORMATION IS: \n")
         # for i, j in self.dict_transform.items():
-        #     print(i, '-->', j
+        #     print(i, '-->', j)
         return
 
     def _get_pn(self, sn):
@@ -96,10 +96,12 @@ class GoBackN(RDTInterface):
                     type, sn, data = split(datagram_recd)
                     sn = _decode_sn(sn)
                 except SocketTimeout:
+                    self.rtt.timed_out()
+                    timeouts += 1
+                    logger.debug('[gbn:send] Timed out. Resending...')
                     if last and timeouts >= MAX_LAST_TIMEOUTS:
                         # Assume everything was sent
                         base = len(datagrams) + 1
-                    logger.debug('[gbn:send] Timed out. Resending...')
                     break
 
                 if type != ACK_TYPE:
@@ -109,12 +111,14 @@ class GoBackN(RDTInterface):
                     continue
 
                 # got ack
-                logger.debug(f'[gbn:send] Got ack sn: {sn}')
                 pn = self._get_pn(sn)
+                logger.debug(
+                    f'[gbn:send] Got ack sn: {sn} and pn: {pn} (base: {base})')
 
                 if pn < base:
                     continue
 
+                self.rtt.add_sample(now() - start)
                 # enviamos lo nuevo
                 start = now()
                 new_count = pn - base + 1
