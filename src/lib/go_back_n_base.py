@@ -60,7 +60,7 @@ class GoBackNBase(RDTInterface):
         return self.dict_transform[sn]
 
     def send(self, data: bytearray, last=False):
-        assert False
+        assert False, "Must be implemented!"
 
     def recv(self, length):
-        assert False
+        assert False, "Must be implemented!"

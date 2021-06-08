@@ -5,8 +5,16 @@ from typing import Callable, Optional
 from lib.socket_udp import Socket
 
 # Typing
-RecvCallback = Callable[[Optional[int], Optional[int]], bytearray]
-SendCallback = Callable[[bytearray], int]
+
+
+class RecvCallback(Callable):
+    def __call__(self, timeout: Optional[int],
+                 start_time: Optional[int]) -> bytearray: ...
+
+
+class SendCallback(Callable):
+    def __call__(self, data: bytearray) -> int: ...
+
 
 # Types
 ACK_TYPE = b'a'
