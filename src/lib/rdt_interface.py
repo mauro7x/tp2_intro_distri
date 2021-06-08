@@ -24,7 +24,7 @@ TIMEOUT = 1  # Recommended start timeout by RFC 6298
 MAX_LAST_TIMEOUTS = 10
 
 
-def split(datagram: bytearray) -> tuple[bytearray]:
+def split(datagram: bytearray) -> 'tuple[bytearray, bytearray, bytearray]':
     """
     TODO: docs.
     """

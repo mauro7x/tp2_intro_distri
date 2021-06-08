@@ -30,9 +30,9 @@ class GoBackN(RDTInterface):
         self.rtt = RTTHandler()
         return
 
-    def _create_datagrams(self, data: bytearray) -> list[bytearray]:
+    def _create_datagrams(self, data: bytearray) -> 'list[bytearray]':
         # [DATA, SN, payload]
-        return [DATA_TYPE + _encode_sn(self._get_sn(i)) +
+        return [DATA_TYPE + _encode_sn(self._get_sn(int(i/MAX_PAYLOAD_SIZE))) +
                 data[i:i+MAX_PAYLOAD_SIZE]
                 for i in range(0, len(data), MAX_PAYLOAD_SIZE)]
 
@@ -46,7 +46,7 @@ class GoBackN(RDTInterface):
         return (sn + 1) % (2 * self.n)
 
     def _calc_transform(self, base):
-        first_pn = (base - self.n if (base - self.n) >= 0 else 0)
+        first_pn = base - self.n
         last_pn = base + self.n
         self.dict_transform = {(i + self.sn_send) % (2*self.n): i
                                for i in range(first_pn, last_pn)}
@@ -61,6 +61,9 @@ class GoBackN(RDTInterface):
         return self.dict_transform[sn]
 
     def send(self, data: bytearray, last=False):
+        logger.debug('[gbn:send] == START SENDING ==')
+        logger.debug(f'[gbn:send] Data to send: {data[:10]} - '
+                     f'len {len(data)} -')
 
         #    base      window_end
         # -- |------> n| ---
@@ -113,6 +116,7 @@ class GoBackN(RDTInterface):
 
         self.sn_send = self._get_sn(base + 1)
 
+        logger.debug('[gbn:send] == FINISH SENDING ==')
         return
 
     def recv(self, length):
