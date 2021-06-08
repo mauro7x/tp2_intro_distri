@@ -1,6 +1,6 @@
 from socket import (SOL_SOCKET, SO_REUSEADDR, socket,
                     AF_INET, SOCK_DGRAM, SHUT_RDWR, timeout)
-from time import monotonic as now
+from time import perf_counter as now
 
 # Lib
 from lib.stats import stats

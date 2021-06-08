@@ -16,7 +16,7 @@ def decode_sn(sn: bytearray) -> int:
 class GoBackNBase(RDTInterface):
 
     def __init__(self, _send: SendCallback, _recv: RecvCallback,
-                 window_size: int = 50) -> None:
+                 window_size: int = 4) -> None:
         assert window_size <= (2**(8 * SN_SIZE))//2
         self.n = window_size
         self._send_datagram = _send

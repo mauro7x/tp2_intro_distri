@@ -50,6 +50,8 @@ if __name__ == "__main__":
     args = parse_args_list()
     try:
         main(args)
+    except KeyboardInterrupt:
+        logger.fatal("Program was ended by KeyboardInterrupt")
     except BaseException:
         logger.exception("Unexpected error during execution:")
         exit(1)

@@ -2,7 +2,7 @@ from collections import deque
 from os import listdir, path
 from threading import Condition, Thread
 from itertools import count as it_count
-from time import monotonic as now
+from time import perf_counter as now
 from typing import Optional
 
 # Lib
@@ -27,7 +27,7 @@ class ClientHandler:
         self.queue_cv = Condition()
         self.queue = deque()
         self.rdt = create_rdt(send, self.pop)
-        self.th = Thread(None, self._run, self)
+        self.th = Thread(target=self._run, name=f'ClientHandler:{self.id}')
         self.th.start()
         self.running = True
 
@@ -96,31 +96,37 @@ class ClientHandler:
             f"Files list sent to {self.addr[0]}:{self.addr[1]}.")
 
     def _run(self):
-        logger.debug(f"[ClientHandler:{self.id}] Started.")
+        try:
+            logger.debug(f"[ClientHandler:{self.id}] Started.")
 
-        opcode, args = prt.recv_request(self.rdt)
+            opcode, args = prt.recv_request(self.rdt)
 
-        if opcode == prt.DOWNLOAD_FILE_OP:
-            logger.debug(
-                f"[ClientHandler:{self.id}] Handling download-file request.")
-            self._handle_download_file(args)
+            if opcode == prt.DOWNLOAD_FILE_OP:
+                logger.debug(
+                    f"[ClientHandler:{self.id}] Handling "
+                    "download-file request.")
+                self._handle_download_file(args)
 
-        elif opcode == prt.UPLOAD_FILE_OP:
-            logger.debug(
-                f"[ClientHandler:{self.id}] Handling upload-file request.")
-            self._handle_upload_file(args)
+            elif opcode == prt.UPLOAD_FILE_OP:
+                logger.debug(
+                    f"[ClientHandler:{self.id}] Handling upload-file request.")
+                self._handle_upload_file(args)
 
-        elif opcode == prt.LIST_FILES_OP:
-            logger.debug(
-                f"[ClientHandler:{self.id}] Handling list-files request.")
-            self._handle_list_files(args)
+            elif opcode == prt.LIST_FILES_OP:
+                logger.debug(
+                    f"[ClientHandler:{self.id}] Handling list-files request.")
+                self._handle_list_files(args)
 
-        else:
-            stats["requests"]["invalid"] += 1
-            prt.send_unknown_error(self.rdt)
+            else:
+                stats["requests"]["invalid"] += 1
+                prt.send_unknown_error(self.rdt)
 
-        logger.debug(f"[ClientHandler:{self.id}] Finished.")
-        self.running = False
+            logger.debug(f"[ClientHandler:{self.id}] Finished.")
+            self.running = False
+        except KeyboardInterrupt:
+            pass
+        except BaseException:
+            logger.exception("Unexpected error during execution:")
         return
 
     def push(self, data):

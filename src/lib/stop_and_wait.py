@@ -1,4 +1,4 @@
-from time import monotonic as now
+from time import perf_counter as now
 
 # Lib
 from lib.rdt_interface import (ACK_TYPE, DATA_TYPE,

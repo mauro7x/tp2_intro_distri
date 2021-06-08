@@ -42,7 +42,8 @@ if __name__ == "__main__":
     args = parse_args_upload()
     try:
         main(args)
-    except BaseException as e:
-        raise e
-        logger.fatal(e)
+    except KeyboardInterrupt:
+        logger.fatal("Program was ended by KeyboardInterrupt")
+    except BaseException:
+        logger.exception("Unexpected error during execution:")
         exit(1)

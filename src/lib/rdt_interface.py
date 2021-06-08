@@ -8,8 +8,8 @@ from lib.socket_udp import Socket
 
 
 class RecvCallback(Callable):
-    def __call__(self, timeout: Optional[int],
-                 start_time: Optional[int]) -> bytearray: ...
+    def __call__(self, timeout: Optional[float],
+                 start_time: Optional[float]) -> bytearray: ...
 
 
 class SendCallback(Callable):

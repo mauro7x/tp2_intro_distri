@@ -11,7 +11,7 @@ from lib.stats import stats
 class Receiver:
 
     def __init__(self, skt: Socket):
-        self.th = Thread(None, self._run)
+        self.th = Thread(target=self._run, name='Receiver')
         self.skt = skt
         self.receiving = True
         self.clients: dict[tuple[str, int], ClientHandler] = {}
@@ -33,18 +33,22 @@ class Receiver:
         return
 
     def _run(self):
-        while self.receiving:
-            data, addr = self.skt.recvfrom(MAX_DATAGRAM_SIZE)
+        try:
+            while self.receiving:
+                data, addr = self.skt.recvfrom(MAX_DATAGRAM_SIZE)
 
-            if not addr:
-                logger.debug("[Receiver] Stopped.")
-                break
+                if not addr:
+                    logger.debug("[Receiver] Stopped.")
+                    break
 
-            self._demux(addr, data)
-            self._join_handlers()
+                self._demux(addr, data)
+                self._join_handlers()
 
-        logger.debug("[Receiver] Joining handlers...")
-        self._join_handlers(True)
+            logger.debug("[Receiver] Joining handlers...")
+            self._join_handlers(True)
+        except BaseException:
+            logger.exception("Unexpected error during execution:")
+        return
 
     def _join_handlers(self, force=False):
         active_handlers = {}

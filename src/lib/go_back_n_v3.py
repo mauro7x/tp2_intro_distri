@@ -1,4 +1,7 @@
-from time import monotonic as now
+from time import perf_counter as now
+from math import isclose
+from collections import deque, namedtuple
+from heapq import heappop, heappush
 
 # Lib
 from lib.rdt_interface import (ACK_TYPE, MAX_LAST_TIMEOUTS, split)
@@ -6,6 +9,32 @@ from lib.go_back_n_v2 import GoBackNV2
 from lib.go_back_n_base import encode_sn, decode_sn
 from lib.logger import logger
 from lib.socket_udp import SocketTimeout
+
+DatagramTime = namedtuple('DatagramTime', ['start', 'pn'])
+
+
+def _is_expired(time: float, timeout: float):
+    return (time <= now() - timeout or
+            isclose(time, now() - timeout, rel_tol=0.01))
+
+
+class Timers:
+
+    def __init__(self):
+        self.heap: 'list[DatagramTime]' = []
+        return
+
+    def add_timer(self, start: int, i: int) -> None:
+        heappush(self.heap, DatagramTime(start, i))
+
+    def get_expired(self, timeout: float) -> set:
+        expired = set()
+        while self.heap and _is_expired(self.heap[0].start, timeout):
+            expired.add(heappop(self.heap).pn)
+        return expired
+
+    def get_min_start_time(self) -> float:
+        return self.heap[0].start
 
 
 class GoBackNV3(GoBackNV2):
@@ -19,32 +48,35 @@ class GoBackNV3(GoBackNV2):
         base = 0
         self._calc_transform(base)
         datagrams = self._create_datagrams(data)
+        send_queue = set([i for i in range(min(self.n, len(datagrams)))])
+        timers = Timers()
 
         logger.debug(f'[gbn:send] Datagram count: {len(datagrams)}')
 
-        # TODO: Add differential timers
-
         while base < len(datagrams):
 
-            start = now()
-            wnd_end = min(base + self.n, len(datagrams))
             logger.debug(
-                f'[gbn:send] Sending from {base} to'
-                f' {wnd_end} with sns: '
-                f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
-            for i in range(base, wnd_end):
-                self._send_datagram(datagrams[i])
+                f'[gbn:send] Sending: [{send_queue}] (len {len(send_queue)})')
+            input()
+            while send_queue:
+                pn = send_queue.pop()
+                self._send_datagram(datagrams[pn])
+                timers.add_timer(now(), pn)
 
             while base < len(datagrams):
                 try:
+                    start_time = timers.get_min_start_time()
                     datagram_recd = self._recv_datagram(
-                        self.rtt.get_timeout(), start)
+                        self.rtt.get_timeout(), start_time)
                     type, sn, data = split(datagram_recd)
                     sn = decode_sn(sn)
                 except SocketTimeout:
+                    expired = timers.get_expired(self.rtt.get_timeout())
+                    send_queue.update(expired)
                     self.rtt.timed_out()
                     timeouts += 1
-                    logger.debug('[gbn:send] Timed out. Resending...')
+                    logger.debug('[gbn:send] Timed out. Expired packets:'
+                                 f' {expired}')
                     if last and timeouts >= MAX_LAST_TIMEOUTS:
                         # Assume everything was sent
                         base = len(datagrams) + 1
@@ -59,26 +91,28 @@ class GoBackNV3(GoBackNV2):
                 # got ack
                 pn = self._get_pn(sn)
                 logger.debug(
-                    f'[gbn:send] Got ack sn: {sn} and pn: {pn} (base: {base})')
+                    f'[gbn:send] Got ack sn: {sn} (pn: {pn}, base: {base})')
 
                 if pn < base:
                     continue
+                # Remove already akd datagrams
+                send_queue -= {i for i in range(base, pn + 1)}
 
-                self.rtt.add_sample(now() - start)
-                # enviamos lo nuevo
+                self.rtt.add_samples(now() - start_time, pn - base)
                 timeouts = 0
-                start = now()
                 new_count = pn - base + 1
                 wnd_end = min(base + self.n, len(datagrams))
                 logger.debug(
-                    f'[gbn:send] Sending new data {base + self.n - new_count} '
-                    f'to {wnd_end}'
+                    '[gbn:send] Adding data to send-queue:'
+                    f' {base + self.n - new_count} to {wnd_end}'
                     f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
-                for i in range(base + self.n - new_count, wnd_end):
-                    self._send_datagram(datagrams[i])
+                # Add new datagrams
+                send_queue |= {i for i in range(
+                    base + self.n - new_count, wnd_end)}
 
                 base = pn + 1
                 self._calc_transform(base)
+                break
 
         self.sn_send = self._get_sn(base)
 
