@@ -51,6 +51,7 @@ if __name__ == "__main__":
     try:
         main(args)
     except KeyboardInterrupt:
+        print()
         logger.fatal("Program was ended by KeyboardInterrupt")
     except BaseException:
         logger.exception("Unexpected error during execution:")
