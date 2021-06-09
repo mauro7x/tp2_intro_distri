@@ -7,8 +7,6 @@ from lib.stop_and_wait import StopAndWait
 
 RDT_VERSION = 'gbn'
 
-__printed_type = False
-
 
 def create_rdt(send, recv):
     if RDT_VERSION == 'gbn1':
