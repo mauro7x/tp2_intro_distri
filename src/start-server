@@ -67,7 +67,7 @@ def main(args):
             if option == 's':
                 print_stats()
             elif option == 'q':
-                raise EOFError
+                raise EOFError()
             print("Enter `s` to print stats, or `q` to exit.")
     except EOFError:
         receiver.stop()

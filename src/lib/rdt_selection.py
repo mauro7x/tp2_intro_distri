@@ -6,7 +6,6 @@ from lib.go_back_n_v3 import GoBackNV3
 from lib.stop_and_wait import StopAndWait
 
 RDT_VERSION = 'gbn'
-# 3 transf 175.6 MB
 
 __printed_type = False
 

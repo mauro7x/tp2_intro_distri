@@ -17,6 +17,10 @@ import lib.protocol as prt
 from lib.socket_udp import SocketTimeout
 
 
+class ServerStopped(Exception):
+    pass
+
+
 class ClientHandler:
 
     id_it = it_count()
@@ -27,9 +31,9 @@ class ClientHandler:
         self.queue_cv = Condition()
         self.queue = deque()
         self.rdt = create_rdt(send, self.pop)
+        self.running = True
         self.th = Thread(target=self._run, name=f'ClientHandler:{self.id}')
         self.th.start()
-        self.running = True
 
     def _handle_download_file(self, args: dict) -> None:
         stats["requests"]["download-file"] += 1
@@ -125,13 +129,21 @@ class ClientHandler:
             self.running = False
         except KeyboardInterrupt:
             pass
+        except ServerStopped:
+            pass
         except BaseException:
             logger.exception("Unexpected error during execution:")
         return
 
     def push(self, data):
         """
-        TODO: docs.
+        Push some data to the queue. Thread-safe function.
+
+        Parameters:
+        data(bytearray): data chunk.
+
+        Returns:
+        None.
         """
         with self.queue_cv:
             self.queue.append(data)
@@ -141,21 +153,33 @@ class ClientHandler:
     def pop(self, timeout: Optional[int] = None,
             start_time: Optional[int] = 0):
         """
-        TODO: docs.
+        Pop one data package from the queue. Thread-safe function.
+        Optionally, it can receive a timeout, so it will return when
+        the data is found in the queue or when the timeout happens,
+        whatever comes first.
+
+        Parameters:
+        [timeout(int)]: time to wait.
+        [start_time(int)]: init time from the timer.
+
+        Returns:
+        data(bytearray): data package from the queue.
         """
+        if not self.running:
+            raise ServerStopped()
+
         with self.queue_cv:
             while not self.queue:
                 wait_time = timeout - \
                     (now() - start_time) if timeout is not None else None
 
                 if not self.queue_cv.wait(wait_time):
-                    raise SocketTimeout("Socket timed out")
+                    raise SocketTimeout()
 
         return self.queue.popleft()
 
     def join(self, force=False):
         if force:
-            # TODO: How we can force clients to stop?
             self.running = False
 
         self.th.join()
