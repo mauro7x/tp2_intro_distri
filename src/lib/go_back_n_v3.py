@@ -1,6 +1,5 @@
 from time import perf_counter as now
-from math import isclose
-from collections import deque, namedtuple
+from collections import namedtuple
 from heapq import heapify, heappop, heappush
 from typing import Iterable
 
@@ -14,26 +13,22 @@ from lib.socket_udp import SocketTimeout
 DatagramTime = namedtuple('DatagramTime', ['start', 'pn'])
 
 
-def _is_expired(time: float, timeout: float):
-    return (time <= now() - timeout or
-            isclose(time, now() - timeout, rel_tol=0.01))
-
-
 class Timers:
 
     def __init__(self):
         self.heap: 'list[DatagramTime]' = []
         return
 
-    def add_timer(self, start: int, i: int) -> None:
-        logger.debug(f'Adding timer for pn: {i}')
-        heappush(self.heap, DatagramTime(start, i))
+    def add_timer(self, start: float, pn: int) -> None:
+        logger.debug(f'[TEMPORARY] Adding timer for pn: {pn}')  # TEMP
+        heappush(self.heap, DatagramTime(start, pn))
 
-    def get_expired(self, timeout: float) -> set:
+    def get_expired(self) -> set:
         expired = set()
-        while self.heap and _is_expired(self.heap[0].start, timeout):
+        min_start_time = self.get_min_start_time()
+        while self.heap and self.heap[0].start == min_start_time:
             dt = heappop(self.heap)
-            logger.debug(f"Time expired for: {dt.pn}")
+            logger.debug(f"[TEMPORARY] Time expired for: {dt.pn}")  # TEMP
             expired.add(dt.pn)
         return expired
 
@@ -41,13 +36,18 @@ class Timers:
         return self.heap[0].start
 
     def remove_ackd(self, ackd_pns: Iterable):
-        for pn in ackd_pns:
-            try:
-                self.heap.remove(pn)
-            except ValueError:
-                pass
+        to_remove = []
+        for dt in self.heap:
+            if dt.pn in ackd_pns:
+                to_remove.append(dt)
+
+        sum = 0
+        for dt in to_remove:
+            self.heap.remove(dt)
+            sum += dt.start
         heapify(self.heap)
-        return
+
+        return sum / len(to_remove)
 
 
 class GoBackNV3(GoBackNV2):
@@ -70,10 +70,11 @@ class GoBackNV3(GoBackNV2):
             logger.debug(
                 f'[gbn:send] Sending: [{send_queue}] (len {len(send_queue)})')
 
+            start = now()
             while send_queue:
                 pn = send_queue.pop()
                 self._send_datagram(datagrams[pn])
-                timers.add_timer(now(), pn)
+                timers.add_timer(start, pn)
 
             while base < len(datagrams):
                 try:
@@ -83,7 +84,7 @@ class GoBackNV3(GoBackNV2):
                     type, sn, data = split(datagram_recd)
                     sn = decode_sn(sn)
                 except SocketTimeout:
-                    expired = timers.get_expired(self.rtt.get_timeout())
+                    expired = timers.get_expired()
                     send_queue.update(expired)
                     self.rtt.timed_out()
                     timeouts += 1
@@ -107,22 +108,25 @@ class GoBackNV3(GoBackNV2):
 
                 if pn < base:
                     continue
+
                 # Remove already akd datagrams
                 ackd_pns = {i for i in range(base, pn + 1)}
                 send_queue -= ackd_pns
-                timers.remove_ackd(ackd_pns)
+                avg_start_time = timers.remove_ackd(ackd_pns)
 
-                self.rtt.add_samples(now() - start_time, pn - base)
+                self.rtt.add_samples(now() - avg_start_time, pn - base)
+                print(f'>>> RTT: {self.rtt.get_timeout()}')
+
+                # We send new packages
                 timeouts = 0
                 new_count = pn - base + 1
-                wnd_end = min(base + self.n, len(datagrams))
+                wnd_end = min(base + new_count + self.n, len(datagrams))
                 logger.debug(
-                    '[gbn:send] Adding data to send-queue:'
-                    f' {base + self.n - new_count} to {wnd_end}'
-                    f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
+                    '[gbn:send] Adding data to send-queue: '
+                    f'{base + self.n} to {wnd_end}')
                 # Add new datagrams
                 send_queue |= {i for i in range(
-                    base + self.n - new_count, wnd_end)}
+                    base + self.n, wnd_end)}
 
                 base = pn + 1
                 self._calc_transform(base)
