@@ -20,7 +20,8 @@ class RTTHandler:
     def add_sample(self, sample: float) -> None:
         self.mean_rtt = (1 - ALPHA) * self.mean_rtt + ALPHA * sample
         self.std_rtt = (1 - BETA) * self.std_rtt + BETA * sample
-        self.timeout = self.mean_rtt + 4 * self.std_rtt
+        self.timeout = min(self.initial_timeout,
+                           self.mean_rtt + 4 * self.std_rtt)
         return
 
     def add_samples(self, sample: float, n: int) -> None:
