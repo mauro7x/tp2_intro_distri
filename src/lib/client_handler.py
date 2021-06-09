@@ -129,8 +129,9 @@ class ClientHandler:
             self.running = False
         except KeyboardInterrupt:
             pass
-        except ServerStopped:
-            pass
+        except (ServerStopped, BrokenPipeError):
+            logger.critical(
+                f"[ClientHandler:{self.id}] Stopping execution forced. Server was stopped.")
         except BaseException:
             logger.exception("Unexpected error during execution:")
         return

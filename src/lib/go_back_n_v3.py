@@ -1,7 +1,8 @@
 from time import perf_counter as now
 from math import isclose
 from collections import deque, namedtuple
-from heapq import heappop, heappush
+from heapq import heapify, heappop, heappush
+from typing import Iterable
 
 # Lib
 from lib.rdt_interface import (ACK_TYPE, MAX_LAST_TIMEOUTS, split)
@@ -25,24 +26,34 @@ class Timers:
         return
 
     def add_timer(self, start: int, i: int) -> None:
+        logger.debug(f'Adding timer for pn: {i}')
         heappush(self.heap, DatagramTime(start, i))
 
     def get_expired(self, timeout: float) -> set:
         expired = set()
         while self.heap and _is_expired(self.heap[0].start, timeout):
-            expired.add(heappop(self.heap).pn)
+            dt = heappop(self.heap)
+            logger.debug(f"Time expired for: {dt.pn}")
+            expired.add(dt.pn)
         return expired
 
     def get_min_start_time(self) -> float:
         return self.heap[0].start
+
+    def remove_ackd(self, ackd_pns: Iterable):
+        for pn in ackd_pns:
+            try:
+                self.heap.remove(pn)
+            except ValueError:
+                pass
+        heapify(self.heap)
+        return
 
 
 class GoBackNV3(GoBackNV2):
 
     def send(self, data: bytearray, last=False):
         logger.debug('[gbn:send] == START SENDING ==')
-        logger.debug(f'[gbn:send] Data to send: {data[:10]} - '
-                     f'len {len(data)} -')
 
         timeouts = 0
         base = 0
@@ -51,13 +62,14 @@ class GoBackNV3(GoBackNV2):
         send_queue = set([i for i in range(min(self.n, len(datagrams)))])
         timers = Timers()
 
-        logger.debug(f'[gbn:send] Datagram count: {len(datagrams)}')
+        logger.debug(f'[gbn:send] Data to send: {data[:10]} - '
+                     f'len {len(data)} -. Datagram count: {len(datagrams)}')
 
         while base < len(datagrams):
 
             logger.debug(
                 f'[gbn:send] Sending: [{send_queue}] (len {len(send_queue)})')
-            input()
+
             while send_queue:
                 pn = send_queue.pop()
                 self._send_datagram(datagrams[pn])
@@ -96,7 +108,9 @@ class GoBackNV3(GoBackNV2):
                 if pn < base:
                     continue
                 # Remove already akd datagrams
-                send_queue -= {i for i in range(base, pn + 1)}
+                ackd_pns = {i for i in range(base, pn + 1)}
+                send_queue -= ackd_pns
+                timers.remove_ackd(ackd_pns)
 
                 self.rtt.add_samples(now() - start_time, pn - base)
                 timeouts = 0
