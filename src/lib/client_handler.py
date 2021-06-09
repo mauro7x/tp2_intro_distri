@@ -125,6 +125,9 @@ class ClientHandler:
             self.running = False
         except KeyboardInterrupt:
             pass
+        except BrokenPipeError:
+            logger.critical(
+                f"[ClientHandler:{self.id}] Socket was closed unexpectedly.")
         except BaseException:
             logger.exception("Unexpected error during execution:")
         return
