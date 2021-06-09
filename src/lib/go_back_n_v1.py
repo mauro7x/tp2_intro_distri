@@ -62,16 +62,17 @@ class GoBackNV1(GoBackNBase):
                     continue
 
                 self.rtt.add_sample(now() - start)
-                # enviamos lo nuevo
+
+                # We send new packages
                 timeouts = 0
                 start = now()
                 new_count = pn - base + 1
-                wnd_end = min(base + self.n, len(datagrams))
+                wnd_end = min(base + new_count + self.n, len(datagrams))
                 logger.debug(
-                    f'[gbn:send] Sending new data {base + self.n - new_count} '
+                    f'[gbn:send] Sending new data {base + self.n} '
                     f'to {wnd_end}'
                     f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
-                for i in range(base + self.n - new_count, wnd_end):
+                for i in range(base + self.n, wnd_end):
                     self._send_datagram(datagrams[i])
 
                 base = pn + 1
