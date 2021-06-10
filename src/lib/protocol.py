@@ -309,12 +309,13 @@ def recv_list(rdt: RDTInterface) -> list:
 
 
 def send_file_not_found(rdt: RDTInterface) -> None:
-    rdt.send(add_padding(encode_short(FILE_NOT_FOUND_ERR), CHUNK_SIZE))
+    rdt.send(add_padding(encode_short(FILE_NOT_FOUND_ERR),
+                         STATUS_SIZE + INT_SIZE), True)
     return
 
 
 def send_unknown_error(rdt: RDTInterface) -> None:
-    rdt.send(add_padding(encode_short(UNKNOWN_OP_ERR), CHUNK_SIZE))
+    rdt.send(add_padding(encode_short(UNKNOWN_OP_ERR), CHUNK_SIZE), True)
     return
 
 

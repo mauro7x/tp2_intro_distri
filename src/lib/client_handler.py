@@ -43,7 +43,10 @@ class ClientHandler:
             size = filesize(filename)
             prt.download_response(self.rdt, filesize(filename))
         except FileNotFoundError:
+            logger.info(f'Client {self.addr[0]}:{self.addr[1]} requested '
+                        'an unavailable file.')
             prt.send_file_not_found(self.rdt)
+            return
 
         logger.info(
             f'File "{filename}" being downloaded from '
