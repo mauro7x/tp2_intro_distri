@@ -19,6 +19,7 @@ class GoBackNV1(GoBackNBase):
         self._calc_transform(base)
         datagrams = self._create_datagrams(data)
 
+        prev_base = 0
         doubled_acks = 0
 
         logger.debug(f'[gbn:send] Datagram count: {len(datagrams)}')
@@ -27,6 +28,7 @@ class GoBackNV1(GoBackNBase):
 
             start = now()
             wnd_end = min(base + self.n, len(datagrams))
+            wnd_start = min(base, wnd_end)
             logger.debug(
                 f'[gbn:send] Sending from {base} to'
                 f' {wnd_end} with sns: '
@@ -41,6 +43,7 @@ class GoBackNV1(GoBackNBase):
                     type, sn, data = split(datagram_recd)
                     sn = decode_sn(sn)
                 except SocketTimeout:
+                    print(f"TIMEDOUT WITH: {self.rtt.get_timeout()}")
                     self.rtt.timed_out()
                     timeouts += 1
                     logger.debug('[gbn:send] Timed out. Resending...')
@@ -60,13 +63,15 @@ class GoBackNV1(GoBackNBase):
                 logger.debug(
                     f'[gbn:send] Got ack sn: {sn} and pn: {pn} (base: {base})')
 
-                if pn == base - 1 and (doubled_acks := doubled_acks + 1) == 3:
+                if pn == base - 1 and prev_base == base and\
+                        (doubled_acks := doubled_acks + 1) == 3:
                     doubled_acks = 0
                     break
 
                 if pn < base:
                     continue
 
+                prev_base = base
                 doubled_acks = 0
 
                 self.rtt.add_sample(now() - start)
@@ -76,11 +81,12 @@ class GoBackNV1(GoBackNBase):
                 start = now()
                 new_count = pn - base + 1
                 wnd_end = min(base + new_count + self.n, len(datagrams))
+                wnd_start = min(base + self.n, wnd_end)
                 logger.debug(
-                    f'[gbn:send] Sending new data {base + self.n} '
+                    f'[gbn:send] Sending new data {wnd_start} '
                     f'to {wnd_end}'
                     f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
-                for i in range(base + self.n, wnd_end):
+                for i in range(wnd_start, wnd_end):
                     self._send_datagram(datagrams[i])
 
                 base = pn + 1

@@ -1,10 +1,11 @@
+from os import getenv
 # Lib
 from lib.logger import logger
 from lib.go_back_n_v1 import GoBackNV1
 from lib.go_back_n_v2 import GoBackNV2
 from lib.stop_and_wait import StopAndWait
 
-RDT_VERSION = 'gbn'
+RDT_VERSION = getenv("RDT_VERSION", 'gbn')
 
 
 def create_rdt(send, recv):
