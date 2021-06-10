@@ -9,7 +9,7 @@ from lib.socket_udp import SocketTimeout
 
 class GoBackNV1(GoBackNBase):
 
-    def send(self, data: bytearray, last=False):
+    def send(self, data: bytearray, last_chunk=False):
         logger.debug('[gbn:send] == START SENDING ==')
         logger.debug(f'[gbn:send] Data to send: {data[:10]} - '
                      f'len {len(data)} -')
@@ -18,6 +18,7 @@ class GoBackNV1(GoBackNBase):
         base = 0
         self._calc_transform(base)
         datagrams = self._create_datagrams(data)
+        last_datagram = False
 
         prev_base = 0
         doubled_acks = 0
@@ -29,12 +30,14 @@ class GoBackNV1(GoBackNBase):
             start = now()
             wnd_end = min(base + self.n, len(datagrams))
             wnd_start = min(base, wnd_end)
+            last_datagram = (wnd_end == len(datagrams))
+            for i in range(wnd_start, wnd_end):
+                self._send_datagram(datagrams[i])
+
             logger.debug(
-                f'[gbn:send] Sending from {base} to'
+                f'[gbn:send] Sending from {wnd_start} to'
                 f' {wnd_end} with sns: '
                 f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
-            for i in range(base, wnd_end):
-                self._send_datagram(datagrams[i])
 
             while base < len(datagrams):
                 try:
@@ -43,12 +46,17 @@ class GoBackNV1(GoBackNBase):
                     type, sn, data = split(datagram_recd)
                     sn = decode_sn(sn)
                 except SocketTimeout:
-                    print(f"timeout count: {timeouts}, last: {last}")
                     self.rtt.timed_out()
                     timeouts += 1
-                    logger.debug('[gbn:send] Timed out. Resending...')
-                    if last and timeouts >= MAX_LAST_TIMEOUTS:
-                        # Assume everything was sent
+                    logger.debug('[gbn:send] Timed out. Resending...'
+                                 f'timeouts: {timeouts}, last_chunk: '
+                                 f'{last_chunk}, last_datagram: '
+                                 f'{last_datagram}')
+                    if last_chunk and last_datagram and\
+                            timeouts >= MAX_LAST_TIMEOUTS:
+                        logger.warn('Client request assumed to have been '
+                                    'fulfilled (timeouts limit has been '
+                                    'reached while waiting for ACK).')
                         base = len(datagrams) + 1
                     break
 
@@ -66,8 +74,6 @@ class GoBackNV1(GoBackNBase):
                 if pn == base - 1 and prev_base == base and\
                         (doubled_acks := doubled_acks + 1) == 3:
                     doubled_acks = 0
-                    timeouts = 0
-
                     break
 
                 if pn < base:
@@ -80,16 +86,19 @@ class GoBackNV1(GoBackNBase):
 
                 # We send new packages
                 timeouts = 0
-                start = now()
                 new_count = pn - base + 1
+
+                start = now()
                 wnd_end = min(base + new_count + self.n, len(datagrams))
                 wnd_start = min(base + self.n, wnd_end)
+                last_datagram = (wnd_end == len(datagrams))
+                for i in range(wnd_start, wnd_end):
+                    self._send_datagram(datagrams[i])
+
                 logger.debug(
                     f'[gbn:send] Sending new data {wnd_start} '
                     f'to {wnd_end}'
                     f'[{self._get_sn(base)}, {self._get_sn(wnd_end)}]')
-                for i in range(wnd_start, wnd_end):
-                    self._send_datagram(datagrams[i])
 
                 base = pn + 1
                 self._calc_transform(base)

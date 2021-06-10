@@ -72,7 +72,7 @@ class StopAndWait(RDTInterface):
                         self.rtt.get_timeout(), start)
                     type, sn, _ = split(datagram_recd)
                 except SocketTimeout:
-                    if last and \
+                    if last and i + MAX_PAYLOAD_SIZE >= len(data) and\
                             ((timeouts := timeouts + 1) >= MAX_LAST_TIMEOUTS):
                         # MAX_LAST_TIMEOUTS reached and we are sending
                         # last piece of data, we assume data arrived

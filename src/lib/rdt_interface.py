@@ -25,7 +25,7 @@ DATA_TYPE = b'd'
 TYPE_SIZE = 1
 SN_SIZE = 1
 # Máx datagram size set by UDP is 2**16 - 8
-MAX_DATAGRAM_SIZE = min(getenv("MAX_DATAGRAM_SIZE", 2**10),
+MAX_DATAGRAM_SIZE = min(getenv("MAX_DATAGRAM_SIZE", 2**14),
                         2**16 - 8 - TYPE_SIZE - SN_SIZE)
 MAX_PAYLOAD_SIZE = MAX_DATAGRAM_SIZE - (TYPE_SIZE + SN_SIZE)
 assert MAX_PAYLOAD_SIZE > 0, "Unvalid datagram size, must be smaller"
