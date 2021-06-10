@@ -7,6 +7,14 @@ from lib.logger import logger
 
 
 class GoBackNV2(GoBackNV1):
+    """
+    Go-Back-N Implementation v2
+
+    Buffering added on the server side; when a package that is
+    not expected is received (the sequence numbers do not match), then
+    it is buffered until the needed package arrives to complete the
+    sequence.
+    """
 
     def _consume_buffer(self, result, buffer):
         current = self.sn_recv

@@ -10,6 +10,13 @@ from lib.socket_udp import SocketTimeout
 
 
 class GoBackNV1(GoBackNBase):
+    """
+    Go-Back-N Implementation v1
+
+    There is no buffering on the server side; when a package that is
+    not expected is received (the sequence numbers do not match), then
+    it is dropped (because the sender will re-transmit it anyway).
+    """
 
     def send(self, data: bytearray, last_chunk=False):
         logger.debug('[gbn:send] == START SENDING ==')

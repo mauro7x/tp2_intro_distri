@@ -14,6 +14,9 @@ def decode_sn(sn: bytearray) -> int:
 
 
 class GoBackNBase(RDTInterface):
+    """
+    GBN protocol abstract class.
+    """
 
     def __init__(self, _send: SendCallback, _recv: RecvCallback,
                  window_size: int = 4) -> None:

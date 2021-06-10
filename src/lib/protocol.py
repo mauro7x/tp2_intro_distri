@@ -84,8 +84,6 @@ def add_padding(bytes: bytearray, size: int) -> bytearray:
 # -----------------------------------------------------------------------------
 # wrappers
 
-# Requests
-
 
 def download_request(rdt: RDTInterface, filename: str) -> int:
     """

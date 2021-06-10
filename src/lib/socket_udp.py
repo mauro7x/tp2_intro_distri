@@ -39,16 +39,34 @@ class Socket:
 
     def sendto(self, data: bytearray, addr: tuple) -> int:
         """
-        TODO: docs.
+        Sends the data through the UDP socket.
+        Wrapper around sendto(2).
+
+        Parameters:
+        data(bytearray): datagram to be send.
+        addr(tuple): destination address.
+
+        Returns:
+        Number of bytes sent.
         """
 
         sent = self.skt.sendto(data, addr)
         stats['bytes']['sent'] += sent
         return sent
 
-    def recvfrom(self, maxlen, timeout=None, start_time: int = 0) -> bytearray:
+    def recvfrom(self, maxlen: int, timeout: float = None,
+                 start_time: float = 0) -> bytearray:
         """
-        TODO: docs.
+        Receives data through the UDP socket with timeout.
+        Wrapper around recvfrom(2).
+
+        Parameters:
+        maxlen(int): datagram to be send.
+        timeout(float): time to block on recv.
+        start_time(float): start point for the timeout.
+
+        Returns:
+        Data received.
         """
 
         if timeout is None:

@@ -28,19 +28,18 @@ SN_SIZE = 1
 MAX_DATAGRAM_SIZE = min(getenv("MAX_DATAGRAM_SIZE", 2**14),
                         2**16 - 8 - TYPE_SIZE - SN_SIZE)
 MAX_PAYLOAD_SIZE = MAX_DATAGRAM_SIZE - (TYPE_SIZE + SN_SIZE)
-assert MAX_PAYLOAD_SIZE > 0, "Unvalid datagram size, must be smaller"
+assert MAX_PAYLOAD_SIZE > 0, "Invalid datagram size, must be smaller"
 
-# Timeouts (in seconds)
-TIMEOUT = 1  # Recommended start timeout by RFC 6298
+# Timeouts
+TIMEOUT = 1  # secs (recommended start timeout by RFC 6298)
+MAX_DISCONNECT_TIME = 30  # secs
 MAX_LAST_TIMEOUTS = 10
-
-MAX_DISCONNECT_TIME = 30  # in seconds
 DISCONNECT_TIMEOUTS = 50
 
 
 def split(datagram: bytearray) -> 'tuple[bytearray, bytearray, bytearray]':
     """
-    TODO: docs.
+    Splits the datagram according to the RDT protocol.
     """
 
     type = datagram[:TYPE_SIZE]

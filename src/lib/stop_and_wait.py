@@ -14,26 +14,18 @@ from lib.socket_udp import SocketTimeout
 
 
 def _get_next(value):
-    """
-    TODO: docs.
-    """
-
     if value == b'0':
         return b'1'
     return b'0'
 
 
 def _get_prev(value):
-    """
-    TODO: docs.
-    """
-
     return _get_next(value)
 
 
 class StopAndWait(RDTInterface):
     """
-    TODO: docs.
+    Stop and Wait protocol implementation.
     """
 
     def __init__(self, send: SendCallback, recv: RecvCallback) -> None:
@@ -46,9 +38,6 @@ class StopAndWait(RDTInterface):
         return
 
     def send(self, data: bytearray, last=False):
-        """
-        TODO: docs.
-        """
         logger.debug('[s&w:send] == START SENDING ==')
         logger.debug(f'[s&w:send] Data to send: {data[:10]} - '
                      f'len {len(data)} -')
@@ -120,9 +109,6 @@ class StopAndWait(RDTInterface):
         return
 
     def recv(self, length):
-        """
-        TODO: docs.
-        """
         logger.debug('[s&w:recv] == START RECEIVING ==')
         logger.debug(f'[s&w:recv] Length: {length}')
 
