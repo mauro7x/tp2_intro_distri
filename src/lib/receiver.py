@@ -1,4 +1,5 @@
 from threading import Thread
+from time import perf_counter as now
 
 # Lib
 from lib.socket_udp import Socket
@@ -8,6 +9,9 @@ from lib.rdt_interface import sendto_fixed_addr, MAX_DATAGRAM_SIZE
 from lib.stats import stats
 
 
+MAX_TIME_BLACKLIST = 60
+
+
 class Receiver:
 
     def __init__(self, skt: Socket):
@@ -15,6 +19,7 @@ class Receiver:
         self.skt = skt
         self.receiving = True
         self.clients: dict[tuple[str, int], ClientHandler] = {}
+        self.tmp_blacklist = {}
         self.th.start()
 
     def _demux(self, addr, data):
@@ -37,6 +42,10 @@ class Receiver:
             while self.receiving:
                 data, addr = self.skt.recvfrom(MAX_DATAGRAM_SIZE)
 
+                if addr in self.tmp_blacklist and\
+                        self._check_blacklist_time(addr):
+                    continue
+
                 if not addr:
                     logger.debug("[Receiver] Stopped.")
                     break
@@ -50,11 +59,18 @@ class Receiver:
             logger.exception("Unexpected error during execution:")
         return
 
+    def _check_blacklist_time(self, addr):
+        if now() - self.tmp_blacklist[addr] <= MAX_TIME_BLACKLIST:
+            return True
+        self.tmp_blacklist.pop(addr)
+        return False
+
     def _join_handlers(self, force=False):
         active_handlers = {}
 
         for addr, handler in self.clients.items():
             if force or handler.is_done():
+                self.tmp_blacklist[addr] = now()
                 handler.join(force)
                 continue
             active_handlers[addr] = handler

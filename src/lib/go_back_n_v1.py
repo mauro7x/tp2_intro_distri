@@ -43,7 +43,7 @@ class GoBackNV1(GoBackNBase):
                     type, sn, data = split(datagram_recd)
                     sn = decode_sn(sn)
                 except SocketTimeout:
-                    print(f"TIMEDOUT WITH: {self.rtt.get_timeout()}")
+                    print(f"timeout count: {timeouts}, last: {last}")
                     self.rtt.timed_out()
                     timeouts += 1
                     logger.debug('[gbn:send] Timed out. Resending...')
@@ -66,6 +66,8 @@ class GoBackNV1(GoBackNBase):
                 if pn == base - 1 and prev_base == base and\
                         (doubled_acks := doubled_acks + 1) == 3:
                     doubled_acks = 0
+                    timeouts = 0
+
                     break
 
                 if pn < base:
