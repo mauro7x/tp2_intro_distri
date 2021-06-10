@@ -19,6 +19,8 @@ class GoBackNV1(GoBackNBase):
         self._calc_transform(base)
         datagrams = self._create_datagrams(data)
 
+        doubled_acks = 0
+
         logger.debug(f'[gbn:send] Datagram count: {len(datagrams)}')
 
         while base < len(datagrams):
@@ -58,8 +60,14 @@ class GoBackNV1(GoBackNBase):
                 logger.debug(
                     f'[gbn:send] Got ack sn: {sn} and pn: {pn} (base: {base})')
 
+                if pn == base - 1 and (doubled_acks := doubled_acks + 1) == 3:
+                    doubled_acks = 0
+                    break
+
                 if pn < base:
                     continue
+
+                doubled_acks = 0
 
                 self.rtt.add_sample(now() - start)
 

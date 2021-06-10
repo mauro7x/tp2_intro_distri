@@ -60,6 +60,8 @@ class GoBackNV2(GoBackNV1):
                 logger.debug(
                     f'[gbn:recv] Future SN received, buffering {sn} '
                     f'(expecting {self.sn_recv})')
+                self._send_datagram(
+                    ACK_TYPE + encode_sn(self._get_prev(self.sn_recv)))
                 continue
 
             # sn == self.sn_recv -> We can use buffered data

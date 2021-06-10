@@ -20,7 +20,7 @@ class Timers:
         return
 
     def add_timer(self, start: float, pn: int) -> None:
-        logger.debug(f'[TEMPORARY] Adding timer for pn: {pn}')  # TEMP
+        # logger.debug(f'[TEMPORARY] Adding timer for pn: {pn}')  # TEMP
         heappush(self.heap, DatagramTime(start, pn))
 
     def get_expired(self) -> set:
@@ -28,7 +28,7 @@ class Timers:
         min_start_time = self.get_min_start_time()
         while self.heap and self.heap[0].start == min_start_time:
             dt = heappop(self.heap)
-            logger.debug(f"[TEMPORARY] Time expired for: {dt.pn}")  # TEMP
+            # logger.debug(f"[TEMPORARY] Time expired for: {dt.pn}")  # TEMP
             expired.add(dt.pn)
         return expired
 
@@ -41,13 +41,10 @@ class Timers:
             if dt.pn in ackd_pns:
                 to_remove.append(dt)
 
-        sum = 0
         for dt in to_remove:
             self.heap.remove(dt)
-            sum += dt.start
         heapify(self.heap)
-
-        return sum / len(to_remove)
+        return
 
 
 class GoBackNV3(GoBackNV2):
@@ -112,10 +109,9 @@ class GoBackNV3(GoBackNV2):
                 # Remove already akd datagrams
                 ackd_pns = {i for i in range(base, pn + 1)}
                 send_queue -= ackd_pns
-                avg_start_time = timers.remove_ackd(ackd_pns)
+                timers.remove_ackd(ackd_pns)
 
-                self.rtt.add_samples(now() - avg_start_time, pn - base)
-                print(f'>>> RTT: {self.rtt.get_timeout()}')
+                self.rtt.add_samples(now() - start, pn - base + 1)
 
                 # We send new packages
                 timeouts = 0
