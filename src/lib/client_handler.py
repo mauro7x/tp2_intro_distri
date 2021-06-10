@@ -130,9 +130,13 @@ class ClientHandler:
         except KeyboardInterrupt:
             pass
         except (ServerStopped, BrokenPipeError):
-            logger.critical(
+            logger.fatal(
                 f"[ClientHandler:{self.id}] Stopping execution forced. "
                 "Server was stopped.")
+        except SocketTimeout:
+            logger.fatal(
+                f"[ClientHandler:{self.id}] Socket "
+                "error: Connection timed-out.")
         except BaseException:
             logger.exception("Unexpected error during execution:")
         return

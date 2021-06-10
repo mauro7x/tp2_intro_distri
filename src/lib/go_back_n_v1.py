@@ -1,7 +1,9 @@
 from time import perf_counter as now
 
 # Lib
-from lib.rdt_interface import (ACK_TYPE, MAX_LAST_TIMEOUTS, split)
+from lib.rdt_interface import (
+    ACK_TYPE, DISCONNECT_TIMEOUTS,
+    MAX_DISCONNECT_TIME, MAX_LAST_TIMEOUTS, split)
 from lib.go_back_n_base import GoBackNBase, encode_sn, decode_sn
 from lib.logger import logger
 from lib.socket_udp import SocketTimeout
@@ -48,10 +50,9 @@ class GoBackNV1(GoBackNBase):
                 except SocketTimeout:
                     self.rtt.timed_out()
                     timeouts += 1
-                    logger.debug('[gbn:send] Timed out. Resending...'
-                                 f'timeouts: {timeouts}, last_chunk: '
-                                 f'{last_chunk}, last_datagram: '
-                                 f'{last_datagram}')
+                    logger.debug('[gbn:send] Timed out. Resending...')
+                    if timeouts >= DISCONNECT_TIMEOUTS:
+                        raise SocketTimeout()
                     if last_chunk and last_datagram and\
                             timeouts >= MAX_LAST_TIMEOUTS:
                         logger.warn('Client request assumed to have been '
@@ -112,13 +113,12 @@ class GoBackNV1(GoBackNBase):
         logger.debug('[gbn:recv] == START RECEIVING ==')
         logger.debug(f'[gbn:recv] Length: {length}')
 
-        # Nice to Have: Add global timer so it doesn't block forever.
-
         result = []
         total_recd = 0
 
         while total_recd < length:
-            type, sn, data = split(self._recv_datagram())
+            type, sn, data = split(
+                self._recv_datagram(MAX_DISCONNECT_TIME, now()))
             sn = decode_sn(sn)
 
             if type == ACK_TYPE:

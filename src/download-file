@@ -8,7 +8,7 @@ from os import path, chdir, mkdir
 from lib.cli_parse import parse_args_download
 from lib.rdt_interface import recvfrom_fixed_addr, sendto_fixed_addr
 from lib.rdt_selection import create_rdt
-from lib.socket_udp import Socket
+from lib.socket_udp import Socket, SocketTimeout
 from lib.logger import logger
 import lib.protocol as prt
 
@@ -55,7 +55,6 @@ def main(args):
     rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 
     filesize = prt.download_request(rdt, args.FILENAME)
-    # Check for enough available space?
 
     logger.info("Downloading file...")
 
@@ -75,6 +74,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print()
         logger.fatal("Program was ended by KeyboardInterrupt")
+    except SocketTimeout:
+        logger.fatal("Socket error: Connection timed-out.")
     except BaseException:
         logger.exception("Unexpected error during execution:")
         exit(1)

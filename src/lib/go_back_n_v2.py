@@ -1,5 +1,6 @@
+from time import perf_counter as now
 # Lib
-from lib.rdt_interface import (ACK_TYPE, split)
+from lib.rdt_interface import (ACK_TYPE, MAX_DISCONNECT_TIME, split)
 from lib.go_back_n_base import encode_sn, decode_sn
 from lib.go_back_n_v1 import GoBackNV1
 from lib.logger import logger
@@ -26,15 +27,14 @@ class GoBackNV2(GoBackNV1):
         logger.debug('[gbn:recv] == START RECEIVING ==')
         logger.debug(f'[gbn:recv] Length: {length}')
 
-        # Nice to Have: Add global timer so it doesn't block forever.
-
         result = []
         total_recd = 0
 
         buffer = [None for i in range(2 * self.n)]
 
         while total_recd < length:
-            type, sn, data = split(self._recv_datagram())
+            type, sn, data = split(
+                self._recv_datagram(MAX_DISCONNECT_TIME, now()))
             sn = decode_sn(sn)
 
             if type == ACK_TYPE:

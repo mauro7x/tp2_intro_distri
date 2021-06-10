@@ -34,6 +34,9 @@ assert MAX_PAYLOAD_SIZE > 0, "Unvalid datagram size, must be smaller"
 TIMEOUT = 1  # Recommended start timeout by RFC 6298
 MAX_LAST_TIMEOUTS = 10
 
+MAX_DISCONNECT_TIME = 30  # in seconds
+DISCONNECT_TIMEOUTS = 50
+
 
 def split(datagram: bytearray) -> 'tuple[bytearray, bytearray, bytearray]':
     """

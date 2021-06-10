@@ -24,12 +24,6 @@ class RTTHandler:
                            self.mean_rtt + 4 * self.std_rtt)
         return
 
-    def add_samples(self, sample: float, n: int) -> None:
-        # This could be done more efficiently
-        for i in range(n):
-            self.add_sample(sample)
-        return
-
     def timed_out(self):
         self.timeout = min(self.initial_timeout, self.timeout * 2)
         return

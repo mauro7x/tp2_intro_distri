@@ -8,7 +8,7 @@ from datetime import datetime
 from lib.cli_parse import parse_args_list
 from lib.rdt_interface import recvfrom_fixed_addr, sendto_fixed_addr
 from lib.rdt_selection import create_rdt
-from lib.socket_udp import Socket
+from lib.socket_udp import Socket, SocketTimeout
 from lib.logger import logger
 from lib.misc import get_size_readable
 import lib.protocol as prt
@@ -53,6 +53,8 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print()
         logger.fatal("Program was ended by KeyboardInterrupt")
+    except SocketTimeout:
+        logger.fatal("Socket error: Connection timed-out.")
     except BaseException:
         logger.exception("Unexpected error during execution:")
         exit(1)

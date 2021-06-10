@@ -44,19 +44,12 @@ class GoBackNBase(RDTInterface):
         last_pn = base + self.n
         self.dict_transform = {(i + self.sn_send) % (2*self.n): i
                                for i in range(first_pn, last_pn)}
-        # logger.debug("TRANSFORMATION IS: \n")
-        # for i, j in self.dict_transform.items():
-        #     print(i, '-->', j)
         return
 
     def _get_sn(self, pn):
         return (pn + self.sn_send) % (2 * self.n)
 
     def _get_pn(self, sn):
-        # How to get payload number from sequence number?
-        # Funciona sin desfase, se puede buscar otra forma
-        # pn = sn + ((base + self.n - 1 - sn) // (2 * self.n))\
-        #     * (2 * self.n)
         return self.dict_transform[sn]
 
     def send(self, data: bytearray, last=False):

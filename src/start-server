@@ -6,7 +6,7 @@ from clients.
 
 from os import chdir, mkdir
 from argparse import ArgumentParser
-from lib.socket_udp import Socket
+from lib.socket_udp import Socket, SocketTimeout
 from lib.receiver import Receiver
 from lib.logger import logger, DEBUG_LEVEL, INFO_LEVEL, FATAL_LEVEL
 from lib.stats import print_stats
@@ -82,6 +82,8 @@ if __name__ == "__main__":
     args = parse_args()
     try:
         main(args)
+    except SocketTimeout:
+        logger.fatal("Socket error: Connection timed-out.")
     except BaseException:
         logger.exception("Unexpected error during execution:")
         exit(1)

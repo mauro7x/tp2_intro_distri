@@ -1,9 +1,10 @@
 from time import perf_counter as now
 
 # Lib
-from lib.rdt_interface import (ACK_TYPE, DATA_TYPE,
-                               MAX_PAYLOAD_SIZE, MAX_LAST_TIMEOUTS,
-                               RDTInterface, RecvCallback, SendCallback, split)
+from lib.rdt_interface import (ACK_TYPE, DATA_TYPE, DISCONNECT_TIMEOUTS,
+                               MAX_DISCONNECT_TIME, MAX_PAYLOAD_SIZE,
+                               MAX_LAST_TIMEOUTS, RDTInterface, RecvCallback,
+                               SendCallback, split)
 from lib.logger import logger
 from lib.rtt_handler import RTTHandler
 from lib.socket_udp import SocketTimeout
@@ -72,8 +73,11 @@ class StopAndWait(RDTInterface):
                         self.rtt.get_timeout(), start)
                     type, sn, _ = split(datagram_recd)
                 except SocketTimeout:
+                    timeouts += 1
+                    if timeouts >= DISCONNECT_TIMEOUTS:
+                        raise SocketTimeout()
                     if last and i + MAX_PAYLOAD_SIZE >= len(data) and\
-                            ((timeouts := timeouts + 1) >= MAX_LAST_TIMEOUTS):
+                            timeouts >= MAX_LAST_TIMEOUTS:
                         # MAX_LAST_TIMEOUTS reached and we are sending
                         # last piece of data, we assume data arrived
                         # but its ack was lost.
@@ -122,13 +126,12 @@ class StopAndWait(RDTInterface):
         logger.debug('[s&w:recv] == START RECEIVING ==')
         logger.debug(f'[s&w:recv] Length: {length}')
 
-        # TODO: Add global timer so it doesn't block 4ever?
-
         result = []
         total_recd = 0
 
         while total_recd < length:
-            type, sn, data = split(self._recv_datagram())
+            type, sn, data = split(
+                self._recv_datagram(MAX_DISCONNECT_TIME, now()))
 
             if type == ACK_TYPE:
                 logger.debug('[s&w:recv] ACK arrived, we expected DATA.')
