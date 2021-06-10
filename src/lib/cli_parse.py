@@ -1,6 +1,10 @@
 # parse.py
 from argparse import ArgumentParser
-from __main__ import __doc__ as description, __file__
+try:
+    from __main__ import __doc__ as description, __file__ as executable
+except ImportError:
+    description = ""
+    __file__ = ""
 
 # Lib
 from lib.logger import DEBUG_LEVEL, INFO_LEVEL, FATAL_LEVEL
@@ -12,7 +16,7 @@ def _parse_args(add_args=None):
     Parse args using `argparse` in order to fullfil requirements.
     """
 
-    parser = ArgumentParser(description=description, prog=__file__)
+    parser = ArgumentParser(description=description, prog=executable)
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-v", "--verbose", action="store_const",
                        dest="level", const=DEBUG_LEVEL, default=INFO_LEVEL,

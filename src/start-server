@@ -41,40 +41,53 @@ def parse_args():
     return parser.parse_args()
 
 
-def main(args):
-    logger.setLevel(args.level)
+def start_server(logger_level, DIRPATH, ADDR, PORT):
+    logger.setLevel(logger_level)
 
     try:
-        chdir(args.DIRPATH)
-    except FileNotFoundError as e:
-        if args.DIRPATH == DEFAULT_DIRPATH:
-            mkdir(args.DIRPATH)
-            chdir(args.DIRPATH)
+        chdir(DIRPATH)
+    except FileNotFoundError:
+        if DIRPATH == DEFAULT_DIRPATH:
+            mkdir(DIRPATH)
+            chdir(DIRPATH)
         else:
-            logger.fatal(e.strerror + args.DIRPATH)
+            logger.fatal(f'Invalid directory: {DIRPATH}')
             exit(1)
 
     skt = Socket()
-    skt.bind(args.ADDR, args.PORT)
+    skt.bind(ADDR, PORT)
 
     receiver = Receiver(skt)
-    logger.info(f"Listening on port {args.PORT}.")
+    logger.info(f"Server started. Listening on port {PORT}.")
 
     print("Enter `s` to print stats, or `q` to exit.")
-    try:
-        while True:
+    while True:
+        try:
             option = input()
             if option == 's':
                 print_stats()
             elif option == 'q':
                 raise EOFError()
             print("Enter `s` to print stats, or `q` to exit.")
-    except (EOFError, KeyboardInterrupt):
-        receiver.stop()
+        except (EOFError, KeyboardInterrupt):
+            try:
+                receiver.stop()
+            except RuntimeWarning:
+                logger.warn("Not every handler is done, force stop? [y/n]")
+                option = input()
+                if option in {'y', 'Y', 'yes'}:
+                    receiver.stop(True)
+            break
+
+    logger.info("Server closed.")
+    return
+
+
+def main(args):
+    start_server(args.level, args.DIRPATH, args.ADDR, args.PORT)
 
     if args.level < FATAL_LEVEL:
         print_stats()
-
     return 0
 
 

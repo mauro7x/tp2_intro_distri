@@ -16,24 +16,28 @@ from lib.misc import filesize
 import lib.protocol as prt
 
 
-def main(args):
-    logger.setLevel(args.level)
+def upload_file(logger_level, FILEPATH, ADDR, PORT, FILENAME):
+    logger.setLevel(logger_level)
 
-    if not path.isfile(args.FILEPATH):
-        raise FileNotFoundError(f"File not found: {args.FILEPATH}")
+    if not path.isfile(FILEPATH):
+        raise FileNotFoundError(f"File not found: {FILEPATH}")
 
     skt = Socket()
-    addr = (args.ADDR, args.PORT)
+    addr = (ADDR, PORT)
     rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 
-    prt.upload_request(rdt, args.FILENAME, filesize(args.FILEPATH))
+    prt.upload_request(rdt, FILENAME, filesize(FILEPATH))
 
     logger.info("Uploading file...")
 
-    with open(args.FILEPATH, 'rb') as f:
+    with open(FILEPATH, 'rb') as f:
         prt.send_file(rdt, f, True)
 
     logger.info("File uploaded.")
+
+
+def main(args):
+    upload_file(args.level, args.FILEPATH, args.ADDR, args.PORT, args.FILENAME)
 
     return 0
 

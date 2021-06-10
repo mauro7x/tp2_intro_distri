@@ -43,18 +43,18 @@ def navigate_to_dirpath(filepath: str) -> str:
     return filepath
 
 
-def main(args):
-    logger.setLevel(args.level)
+def download_file(logger_level, FILEPATH, ADDR, PORT, FILENAME):
+    logger.setLevel(logger_level)
 
-    filepath = navigate_to_dirpath(args.FILEPATH)
+    filepath = navigate_to_dirpath(FILEPATH)
     if filepath is None:
         return 0
 
     skt = Socket()
-    addr = (args.ADDR, args.PORT)
+    addr = (ADDR, PORT)
     rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 
-    filesize = prt.download_request(rdt, args.FILENAME)
+    filesize = prt.download_request(rdt, FILENAME)
 
     logger.info("Downloading file...")
 
@@ -63,6 +63,12 @@ def main(args):
             f.write(file_chunk)
 
     logger.info("File downloaded.")
+    return
+
+
+def main(args):
+    download_file(args.level, args.FILEPATH,
+                  args.ADDR, args.PORT, args.FILENAME)
 
     return 0
 

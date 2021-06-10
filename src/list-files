@@ -14,11 +14,11 @@ from lib.misc import get_size_readable
 import lib.protocol as prt
 
 
-def main(args):
-    logger.setLevel(args.level)
+def list_files(logger_level, ADDR, PORT, SORT_KEY):
+    logger.setLevel(logger_level)
 
     skt = Socket()
-    addr = (args.ADDR, args.PORT)
+    addr = (ADDR, PORT)
     rdt = create_rdt(sendto_fixed_addr(skt, addr), recvfrom_fixed_addr(skt))
 
     prt.listfiles_request(rdt)
@@ -38,11 +38,14 @@ def main(args):
     print(f"Archivos disponibles ({len(files_list)}):")
 
     files_list.sort(reverse=not args.ASC,
-                    key=lambda x: x[sorted_by[args.SORT_KEY]])
+                    key=lambda x: x[sorted_by[SORT_KEY]])
     for filename, size, mtime in files_list:
         mtime = datetime.fromtimestamp(mtime).strftime('%d-%b-%Y (%H:%M:%S)')
         print(f"> [{mtime}] {filename} - {get_size_readable(size)}")
 
+
+def main(args):
+    list_files(args.level, args.ADDR, args.PORT, args.SORT_KEY)
     return 0
 
 

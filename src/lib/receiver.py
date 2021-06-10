@@ -2,7 +2,7 @@ from threading import Thread
 from time import perf_counter as now
 
 # Lib
-from lib.socket_udp import Socket
+from lib.socket_udp import Socket, SocketTimeout
 from lib.client_handler import ClientHandler
 from lib.logger import logger
 from lib.rdt_interface import sendto_fixed_addr, MAX_DATAGRAM_SIZE
@@ -10,6 +10,7 @@ from lib.stats import stats
 
 
 MAX_TIME_BLACKLIST = 60
+NEW_CONNECTION_MAX_WAIT = 1
 
 
 class Receiver:
@@ -40,17 +41,22 @@ class Receiver:
     def _run(self):
         try:
             while self.receiving:
-                data, addr = self.skt.recvfrom(MAX_DATAGRAM_SIZE)
+                try:
+                    data, addr = self.skt.recvfrom(
+                        MAX_DATAGRAM_SIZE, NEW_CONNECTION_MAX_WAIT, now())
 
-                if addr in self.tmp_blacklist and\
-                        self._check_blacklist_time(addr):
-                    continue
+                    if addr in self.tmp_blacklist and\
+                            self._check_blacklist_time(addr):
+                        continue
 
-                if not addr:
-                    logger.debug("[Receiver] Stopped.")
-                    break
+                    if not addr:
+                        logger.debug("[Receiver] Stopped.")
+                        break
 
-                self._demux(addr, data)
+                    self._demux(addr, data)
+                except SocketTimeout:
+                    pass
+
                 self._join_handlers()
 
             logger.debug("[Receiver] Joining handlers...")
@@ -77,8 +83,10 @@ class Receiver:
 
         self.clients = active_handlers
 
-    def stop(self):
+    def stop(self, force=False):
         logger.debug('[Receiver] Stopping...')
+        if not force and len(self.clients) > 0:
+            raise RuntimeWarning("Some Handlers havent finished yet.")
         self.receiving = False
         self.skt.close()
         self.th.join()

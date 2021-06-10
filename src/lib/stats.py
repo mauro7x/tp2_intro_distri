@@ -19,9 +19,19 @@ stats = {
         "sent": 0,
         "recd": 0
     },
+    "transfer-speeds": [],
     "start-time": datetime.now(),
     "runtime": 0
 }
+
+
+def mean(it):
+    return sum(it)/len(it)
+
+
+def std(it):
+    avg = mean(it)
+    return (sum(map(lambda x: (avg - x)**2, it)) ** 0.5) / (len(it) - 1)
 
 
 def print_stats():
@@ -43,6 +53,15 @@ def print_stats():
     bytes = stats['bytes']
     print(f"  * Sent: {get_size_readable(bytes['sent'])}")
     print(f"  * Received: {get_size_readable(bytes['recd'])}")
+    print()
+    print("> Transfer speeds:")
+    transfer_speeds = stats['transfer-speeds']
+    M = get_size_readable(max(transfer_speeds))
+    m = get_size_readable(min(transfer_speeds))
+    avg = get_size_readable(mean(transfer_speeds))
+    dev = get_size_readable(std(transfer_speeds))
+    print(f"  * min - max: {M}/s - {m}/s")
+    print(f"  * avg - mdev: {avg}/s - {dev}/s")
     print()
     print("> Files:")
     files = stats['files']

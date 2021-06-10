@@ -59,6 +59,7 @@ class ClientHandler:
 
         stats["files"]["downloads"] += 1
         elapsed = now() - start
+        stats["transfer-speeds"].append(size/elapsed)
         logger.info(
             f'File "{filename}" downloaded from {self.addr[0]}:{self.addr[1]}'
             f' (elapsed: {get_time_readable(elapsed)}, avg transf speed: '
@@ -81,6 +82,7 @@ class ClientHandler:
                 f.write(file_chunk)
 
         time_elapsed = (now() - start)
+        stats["transfer-speeds"].append(filesize/time_elapsed)
         logger.info(
             f'File "{filename}" uploaded from {self.addr[0]}:{self.addr[1]} '
             f'(elapsed: {get_time_readable(time_elapsed)}, avg transf speed: '
