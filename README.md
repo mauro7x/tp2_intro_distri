@@ -18,7 +18,7 @@ Se listan a continuación los requisitos necesarios para poder correr el proyect
 
 -   [Python3](https://www.python.org/downloads/)
 
-## Uso :computer: <MIGHT BE OUTDATED, FROM TP1>
+## Uso :computer:
 
 Se detalla a continuación una breve explicación para correr el programa:
 
