@@ -50,7 +50,7 @@ class GoBackNV2(GoBackNV1):
                 logger.debug(
                     f'[gbn:recv] Wrong SN received ({sn}, '
                     f'expected {self.sn_recv}). Re-sending '
-                    f'last ackd SN ({self.sn_recv})...')
+                    f'last ackd SN ({self._get_prev(self.sn_recv)})...')
                 self._send_datagram(
                     ACK_TYPE + encode_sn(self._get_prev(self.sn_recv)))
                 continue
