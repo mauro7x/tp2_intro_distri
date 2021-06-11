@@ -216,8 +216,9 @@ def send_file(rdt: RDTInterface, f, progress: bool = False):
     chunk = f.read(CHUNK_SIZE)
     last_chunk = False
     while chunk:
-        if len(chunk) < CHUNK_SIZE:
+        if (sent + len(chunk)) >= filesize:
             last_chunk = True
+
         rdt.send(chunk, last_chunk)
         sent += len(chunk)
         if progress:
