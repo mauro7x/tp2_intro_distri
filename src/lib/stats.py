@@ -63,7 +63,7 @@ def print_stats():
         if len(transfer_speeds) > 1:
             dev = get_size_readable(std(transfer_speeds))
         else:
-            dev = "- B"
+            dev = "0 B"
         print(f"  * min - max: {M}/s - {m}/s")
         print(f"  * avg - mdev: {avg}/s - {dev}/s")
     else:
