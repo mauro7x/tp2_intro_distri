@@ -73,9 +73,10 @@ def start_server(logger_level, DIRPATH, ADDR, PORT):
             try:
                 receiver.stop()
             except RuntimeWarning:
-                logger.warn("Not every handler is done, force stop? [y/n]")
-                option = input()
-                if option in {'y', 'Y', 'yes'}:
+                logger.warning("Not every handler is done, it could "
+                               "take a few seconds to end the connections.")
+                option = input(" -> Force stop? [y/n]")
+                if option in {'s', 'S', 'y', 'Y', 'yes'}:
                     receiver.stop(True)
             break
 

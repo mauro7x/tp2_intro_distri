@@ -10,7 +10,7 @@ from lib.stats import stats
 
 
 MAX_TIME_BLACKLIST = 60
-NEW_CONNECTION_MAX_WAIT = 1
+NEW_CONNECTION_MAX_WAIT = 0.5
 
 
 class Receiver:
