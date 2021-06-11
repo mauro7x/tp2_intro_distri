@@ -22,7 +22,7 @@ def get_size_readable(size: int, decimals: bool = True) -> str:
 
 
 def get_time_readable(seconds: float) -> str:
-    if seconds < 1:
+    if seconds < 10:
         return f'00:0{seconds:.4f}'
     return time.strftime('%M:%S', time.gmtime(seconds))
 
