@@ -208,10 +208,10 @@ def send_file(rdt: RDTInterface, f, progress: bool = False):
     progress &= logger.level < FATAL_LEVEL
 
     sent = 0
+    f.seek(0, SEEK_END)
+    filesize = f.tell()
+    f.seek(0)
     if progress:
-        f.seek(0, SEEK_END)
-        filesize = f.tell()
-        f.seek(0)
         progress_bar(sent, filesize)
     chunk = f.read(CHUNK_SIZE)
     last_chunk = False
