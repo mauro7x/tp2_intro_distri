@@ -5,15 +5,15 @@ from io import SEEK_END
 def get_size_readable(size: int, decimals: bool = True) -> str:
     assert size >= 0
 
-    if size < 2**10:
+    if size < 1e3:
         unit = "B"
         converted = size
-    elif size < 2**20:
+    elif size < 1e6:
         unit = "KB"
-        converted = (size / (2**10))
+        converted = (size / (1e3))
     else:
         unit = "MB"
-        converted = (size / (2**20))
+        converted = (size / (1e6))
 
     if decimals:
         return f"{converted:.2f} {unit}"
