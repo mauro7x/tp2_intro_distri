@@ -56,12 +56,18 @@ def print_stats():
     print()
     print("> Transfer speeds:")
     transfer_speeds = stats['transfer-speeds']
-    M = get_size_readable(max(transfer_speeds))
-    m = get_size_readable(min(transfer_speeds))
-    avg = get_size_readable(mean(transfer_speeds))
-    dev = get_size_readable(std(transfer_speeds))
-    print(f"  * min - max: {M}/s - {m}/s")
-    print(f"  * avg - mdev: {avg}/s - {dev}/s")
+    if len(transfer_speeds) > 0:
+        M = get_size_readable(max(transfer_speeds))
+        m = get_size_readable(min(transfer_speeds))
+        avg = get_size_readable(mean(transfer_speeds))
+        if len(transfer_speeds) > 1:
+            dev = get_size_readable(std(transfer_speeds))
+        else:
+            dev = "- B"
+        print(f"  * min - max: {M}/s - {m}/s")
+        print(f"  * avg - mdev: {avg}/s - {dev}/s")
+    else:
+        print("  * No files were transfered.")
     print()
     print("> Files:")
     files = stats['files']
